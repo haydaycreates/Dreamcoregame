@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#1a0b2e" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <title>Liminal Drive — A Dreamcore Sandbox</title>
 <style>
   html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0a0714; }
@@ -13,126 +15,127 @@
     touch-action: none; overscroll-behavior: none; position: fixed; inset: 0;
   }
   * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
-
   #game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
   /* ---------- HUD ---------- */
   .hud-top {
-    position: absolute; top: 12px; left: 12px; right: 12px;
-    display: flex; justify-content: space-between; gap: 10px;
-    pointer-events: none; z-index: 5;
+    position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 10px; right: 10px;
+    display: flex; justify-content: space-between; gap: 8px; pointer-events: none; z-index: 5;
   }
   .panel {
     background: linear-gradient(145deg, rgba(50,30,80,.55), rgba(20,10,40,.5));
-    border: 1px solid rgba(255,255,255,.1); border-radius: 14px;
-    padding: 10px 14px; min-width: 120px;
-    box-shadow: 0 6px 20px rgba(0,0,0,.35);
-    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 8px 12px; min-width: 96px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
   }
   .label { font-size: 10px; letter-spacing: 2px; opacity: .7; }
-  .big { font-size: 28px; font-weight: 700; line-height: 1; margin-top: 2px; }
-  .small { font-size: 11px; opacity: .7; margin-top: 4px; }
+  .big { font-size: 26px; font-weight: 700; line-height: 1; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .small { font-size: 11px; opacity: .75; margin-top: 4px; }
+  .combo { font-size: 13px; font-weight: 700; color: #8cf0e8; margin-top: 3px; min-height: 15px; transition: transform .1s; }
+  .combo.pop { transform: scale(1.3); }
+  .combo.hot { color: #ffb8d6; text-shadow: 0 0 10px #ff8fc0; }
 
-  .energy-wrap {
-    position: absolute; left: 50%; transform: translateX(-50%); bottom: 20px;
-    width: min(420px, 70vw); z-index: 5; pointer-events: none;
-  }
-  .energy-label { font-size: 10px; letter-spacing: 3px; text-align: center; margin-bottom: 6px; opacity: .7; }
-  .energy-bar {
-    height: 10px; border-radius: 8px; background: rgba(20,10,40,.6);
-    border: 1px solid rgba(255,255,255,.15); overflow: hidden;
-  }
-  .energy-fill { height: 100%; border-radius: 8px; transition: width .2s ease; box-shadow: 0 0 12px rgba(140,240,232,.6); width: 100%; }
+  .bars { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom));
+    width: min(380px, 56vw); z-index: 5; pointer-events: none; }
+  .bar-label { font-size: 9px; letter-spacing: 3px; text-align: center; margin-bottom: 4px; opacity: .7; }
+  .bar { height: 10px; border-radius: 8px; background: rgba(20,10,40,.6); border: 1px solid rgba(255,255,255,.15); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 8px; transition: width .15s ease; width: 100%; }
+  #energy-fill { box-shadow: 0 0 12px rgba(140,240,232,.6); }
+  #boost-fill { width: 0%; background: linear-gradient(90deg,#ffb8d6,#f6c8ff,#8cf0e8); box-shadow: 0 0 12px rgba(255,184,214,.6); }
+  .bar.ready { border-color: #ffb8d6; box-shadow: 0 0 14px rgba(255,184,214,.5); }
+  .bar.low { animation: pulse .6s infinite alternate; }
+  @keyframes pulse { from { border-color: rgba(255,120,160,.4);} to { border-color: rgba(255,120,160,1); box-shadow: 0 0 16px rgba(255,120,160,.7);} }
 
-  .pause-fab {
-    position: absolute; top: 96px; right: 16px; z-index: 6;
-    width: 44px; height: 44px; border-radius: 50%;
-    background: rgba(20,10,40,.55); border: 1px solid rgba(255,255,255,.15);
-    color: #f5eaff; font-size: 12px; cursor: pointer; letter-spacing: 1px;
-    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-    display: flex; align-items: center; justify-content: center;
+  .hud-right { position: absolute; top: calc(92px + env(safe-area-inset-top)); right: 12px; z-index: 6; display: flex; flex-direction: column; gap: 8px; }
+  .fab {
+    width: 42px; height: 42px; border-radius: 50%; background: rgba(20,10,40,.55); border: 1px solid rgba(255,255,255,.15);
+    color: #f5eaff; font-size: 13px; cursor: pointer; letter-spacing: 1px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; pointer-events: auto;
   }
+  .status-chips { position: absolute; left: 50%; transform: translateX(-50%); top: calc(96px + env(safe-area-inset-top)); z-index: 5; display: flex; gap: 6px; pointer-events: none; flex-wrap: wrap; justify-content: center; }
+  .chip { font-size: 11px; letter-spacing: 1px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(20,10,40,.55); backdrop-filter: blur(4px); }
+  .chip.shield { color:#8cf0e8; border-color:#8cf0e8; } .chip.magnet { color:#f6c86a; border-color:#f6c86a; } .chip.lucid { color:#f6c8ff; border-color:#f6c8ff; }
 
-  /* ---------- Touch controls ---------- */
-  .touch-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
-  .joystick {
-    position: absolute; left: 24px; bottom: 90px; width: 120px; height: 120px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,.1), rgba(255,255,255,.03));
-    border: 1px solid rgba(255,255,255,.15); pointer-events: auto; touch-action: none;
+  /* ---------- Touch / pointer controls ---------- */
+  .steer-zone { position: absolute; inset: 0; z-index: 3; touch-action: none; }
+  .ghost-knob { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25);
+    background: radial-gradient(circle, rgba(255,255,255,.08), rgba(255,255,255,.02)); pointer-events: none; transform: translate(-50%,-50%); display: none; z-index: 4; }
+  .ghost-knob i { position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; border-radius: 50%; transform: translate(-50%,-50%);
+    background: radial-gradient(circle at 30% 30%, #fff, #d9c8ff); box-shadow: 0 4px 14px rgba(120,80,180,.5); }
+  .ctrl-btn {
+    position: absolute; bottom: calc(26px + env(safe-area-inset-bottom)); z-index: 6; width: 84px; height: 84px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    background: rgba(255,255,255,.12); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); touch-action: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   }
-  .joy-knob {
-    position: absolute; width: 56px; height: 56px; border-radius: 50%; left: 32px; top: 32px;
-    background: radial-gradient(circle at 30% 30%, #fff, #d9c8ff);
-    box-shadow: 0 6px 18px rgba(120,80,180,.4); pointer-events: none;
-  }
-  .pedals { position: absolute; right: 24px; bottom: 90px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto; }
-  .pedal {
-    width: 76px; height: 60px; border-radius: 16px; border: 1px solid rgba(255,255,255,.15);
-    color: #fff; font-size: 22px; cursor: pointer; touch-action: none;
-    background: rgba(255,255,255,.14); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-  }
-  .pedal.up { background: rgba(255,255,255,.18); }
-  .pedal.up.active { background: rgba(140,240,232,.55); }
-  .pedal.down.active { background: rgba(255,120,160,.5); }
+  .ctrl-btn span { font-size: 24px; }
+  #boost-btn { right: 18px; } #brake-btn { left: 18px; width: 70px; height: 70px; bottom: calc(33px + env(safe-area-inset-bottom)); }
+  #boost-btn.ready { border-color: #ffb8d6; box-shadow: 0 0 20px rgba(255,184,214,.6); background: rgba(255,184,214,.25); }
+  #boost-btn.active { background: rgba(140,240,232,.5); }
+  #brake-btn.active { background: rgba(255,120,160,.45); }
+  .desktop .ctrl-btn { opacity: .55; width: 64px; height: 64px; font-size: 10px; } .desktop .ctrl-btn span { font-size: 18px; }
+
+  .hint { position: absolute; left: 50%; bottom: calc(120px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 5; pointer-events: none;
+    font-size: 13px; letter-spacing: 1px; opacity: .85; text-align: center; background: rgba(20,10,40,.5); padding: 8px 14px; border-radius: 999px; transition: opacity 1s; }
+  .banner { position: absolute; left: 50%; top: 32%; transform: translate(-50%,-50%); z-index: 7; pointer-events: none; text-align: center; opacity: 0; }
+  .banner.show { animation: banner 3s ease forwards; }
+  @keyframes banner { 0% {opacity:0; transform: translate(-50%,-40%) scale(.9);} 12% {opacity:1; transform: translate(-50%,-50%) scale(1);} 80% {opacity:1;} 100% {opacity:0; transform: translate(-50%,-60%);} }
+  .banner .t { font-size: 34px; font-weight: 800; background: linear-gradient(90deg,#f6c8ff,#8cf0e8,#ffb8d6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .banner .s { font-size: 14px; opacity: .85; font-style: italic; }
+  .toasts { position: absolute; left: 50%; transform: translateX(-50%); top: 48%; z-index: 7; pointer-events: none; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .toast { font-size: 13px; padding: 8px 16px; border-radius: 999px; background: rgba(20,10,40,.75); border: 1px solid rgba(246,200,255,.4); animation: toast 3s ease forwards; }
+  @keyframes toast { 0% {opacity:0; transform: translateY(10px);} 10% {opacity:1; transform: none;} 85% {opacity:1;} 100% {opacity:0;} }
+  .dmg { position: absolute; inset: 0; z-index: 4; pointer-events: none; box-shadow: inset 0 0 120px rgba(255,60,100,.0); transition: box-shadow .3s; }
+  .dmg.low { box-shadow: inset 0 0 140px rgba(255,60,100,.45); animation: dmgpulse 1s infinite alternate; }
+  @keyframes dmgpulse { to { box-shadow: inset 0 0 90px rgba(255,60,100,.2);} }
 
   /* ---------- Overlays ---------- */
-  .overlay {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px;
-    background: radial-gradient(ellipse at center, rgba(20,10,40,.35), rgba(10,7,20,.85));
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    z-index: 10; animation: fade .4s ease;
-  }
-  .card {
-    background: linear-gradient(145deg, rgba(50,30,80,.65), rgba(20,10,40,.7));
-    border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 32px 30px;
-    box-shadow: 0 30px 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1);
-    color: #f5eaff; max-width: 92vw; text-align: center;
-  }
+  .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px;
+    background: radial-gradient(ellipse at center, rgba(20,10,40,.35), rgba(10,7,20,.85)); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    z-index: 10; animation: fade .4s ease; }
+  .card { background: linear-gradient(145deg, rgba(50,30,80,.7), rgba(20,10,40,.78)); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 26px 24px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1); color: #f5eaff; width: min(520px, 94vw); max-height: 92vh; overflow-y: auto; text-align: center; }
   @keyframes fade { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
-
-  .title {
-    font-size: 54px; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: 6px;
-    background: linear-gradient(90deg, #f6c8ff, #8cf0e8, #ffb8d6);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 40px rgba(200,150,255,.3);
-  }
-  .subtitle { opacity: .85; font-style: italic; margin-bottom: 22px; }
-  .body-text { opacity: .8; line-height: 1.6; margin-bottom: 26px; font-size: 15px; max-width: 460px; }
-
+  .title { font-size: 48px; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: 6px;
+    background: linear-gradient(90deg, #f6c8ff, #8cf0e8, #ffb8d6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .subtitle { opacity: .85; font-style: italic; margin-bottom: 18px; }
+  .body-text { opacity: .8; line-height: 1.6; margin: 0 auto 20px; font-size: 14px; max-width: 440px; }
   button { transition: transform .12s ease, background .2s ease, box-shadow .2s ease; font-family: inherit; }
-  button:hover { transform: translateY(-1px); }
-  button:active { transform: translateY(1px); }
-
-  .btn-primary {
-    padding: 12px 24px; font-size: 16px; font-weight: 600; color: #1a0b2e;
-    background: linear-gradient(90deg, #f6c8ff, #8cf0e8); border: none; border-radius: 999px; cursor: pointer;
-    box-shadow: 0 8px 24px rgba(200,150,255,.4);
-  }
-  .btn-ghost {
-    padding: 10px 18px; font-size: 14px; color: #f5eaff; background: rgba(255,255,255,.08);
-    border: 1px solid rgba(255,255,255,.18); border-radius: 999px; cursor: pointer;
-  }
-  .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-  .help {
-    margin-top: 18px; padding: 14px; font-size: 13px; line-height: 1.7;
-    background: rgba(0,0,0,.25); border-radius: 12px; border: 1px solid rgba(255,255,255,.08); text-align: left;
-  }
-  .ledger-title { font-size: 12px; letter-spacing: 2px; opacity: .6; margin: 24px 0 8px; }
-  .ledger { display: grid; grid-template-columns: auto 1fr auto; gap: 4px; font-size: 14px; text-align: left; }
-  .ledger .rank { opacity: .6; }
-  .ledger .date { opacity: .7; }
-  .ledger .score { font-weight: 600; color: #f6c8ff; text-align: right; }
-  .final-score {
-    display: inline-block; padding: 16px 22px; margin-bottom: 20px;
-    background: linear-gradient(145deg, rgba(50,30,80,.55), rgba(20,10,40,.5));
-    border: 1px solid rgba(255,255,255,.1); border-radius: 14px;
-  }
+  button:hover { transform: translateY(-1px); } button:active { transform: translateY(1px); }
+  .btn-primary { padding: 12px 26px; font-size: 16px; font-weight: 600; color: #1a0b2e; background: linear-gradient(90deg, #f6c8ff, #8cf0e8); border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 8px 24px rgba(200,150,255,.4); }
+  .btn-ghost { padding: 9px 16px; font-size: 13px; color: #f5eaff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; cursor: pointer; }
+  .btn-ghost.on { background: rgba(140,240,232,.25); border-color: #8cf0e8; }
+  .btn-ghost:disabled { opacity: .4; cursor: default; }
+  .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .help { margin-top: 14px; padding: 12px; font-size: 13px; line-height: 1.7; background: rgba(0,0,0,.25); border-radius: 12px; border: 1px solid rgba(255,255,255,.08); text-align: left; }
+  .sec-title { font-size: 11px; letter-spacing: 2px; opacity: .6; margin: 18px 0 8px; }
+  .ledger { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; font-size: 13px; text-align: left; }
+  .ledger .rank { opacity: .6; } .ledger .date { opacity: .7; } .ledger .score { font-weight: 600; color: #f6c8ff; text-align: right; }
+  .final-score { display: inline-block; padding: 14px 20px; margin-bottom: 14px; background: linear-gradient(145deg, rgba(50,30,80,.55), rgba(20,10,40,.5)); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 16px; }
+  .stat { background: rgba(0,0,0,.25); border-radius: 10px; padding: 8px 4px; }
+  .stat .v { font-size: 18px; font-weight: 700; } .stat .k { font-size: 9px; letter-spacing: 1.5px; opacity: .6; }
+  .shards { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #f6c86a; }
+  .mission { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,.25); margin-bottom: 6px; text-align: left; font-size: 13px; }
+  .mission.done { opacity: .6; } .mission .mt { flex: 1; } .mission .mr { color: #f6c86a; font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .mission .pb { height: 5px; border-radius: 4px; background: rgba(255,255,255,.1); margin-top: 5px; overflow: hidden; }
+  .mission .pb i { display: block; height: 100%; background: linear-gradient(90deg,#8cf0e8,#f6c8ff); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+  .item { padding: 10px 6px; border-radius: 12px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.08); cursor: pointer; font-size: 12px; }
+  .item.sel { border-color: #8cf0e8; box-shadow: 0 0 12px rgba(140,240,232,.4); } .item.locked { opacity: .6; }
+  .item .sw { width: 44px; height: 26px; border-radius: 8px; margin: 0 auto 6px; }
+  .item .pr { font-size: 11px; color: #f6c86a; margin-top: 3px; }
+  .ach { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 6px; }
+  .ach div { font-size: 12px; padding: 8px; border-radius: 10px; background: rgba(0,0,0,.25); opacity: .45; text-align: left; }
+  .ach div.got { opacity: 1; border: 1px solid rgba(246,200,106,.5); }
+  .tabs { display: flex; gap: 6px; justify-content: center; margin: 14px 0 10px; flex-wrap: wrap; }
   .hidden { display: none !important; }
   svg .marker { filter: drop-shadow(0 0 4px #fff); }
+  @media (max-width: 520px) { .panel { min-width: 80px; padding: 6px 9px; } .big { font-size: 20px; } .title { font-size: 40px; } .hud-center svg { display: none; } .stats { grid-template-columns: repeat(2,1fr);} }
 </style>
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div class="dmg" id="dmg"></div>
 
   <!-- Playing HUD -->
   <div id="hud" class="hidden">
@@ -140,44 +143,44 @@
       <div class="panel">
         <div class="label">SCORE</div>
         <div class="big" id="hud-score">0</div>
+        <div class="combo" id="hud-combo"></div>
         <div class="small" id="hud-best">BEST 0</div>
       </div>
-      <div class="panel" style="text-align:center">
+      <div class="panel hud-center" style="text-align:center">
         <div class="label" id="hud-biome">—</div>
-        <div class="small" id="hud-time" style="opacity:.85">Morning · 00:00</div>
-        <svg width="100" height="40" style="margin-top:4px">
-          <defs>
-            <linearGradient id="skyarc" x1="0" x2="1">
-              <stop offset="0" stop-color="#1a1040"/><stop offset=".25" stop-color="#ff8ea8"/>
-              <stop offset=".5" stop-color="#8cd8ff"/><stop offset=".75" stop-color="#ff7a5c"/>
-              <stop offset="1" stop-color="#1a1040"/>
-            </linearGradient>
-          </defs>
+        <div class="small" id="hud-time">Morning · 00:00</div>
+        <svg width="100" height="34" style="margin-top:2px">
+          <defs><linearGradient id="skyarc" x1="0" x2="1">
+            <stop offset="0" stop-color="#1a1040"/><stop offset=".25" stop-color="#ff8ea8"/><stop offset=".5" stop-color="#8cd8ff"/><stop offset=".75" stop-color="#ff7a5c"/><stop offset="1" stop-color="#1a1040"/>
+          </linearGradient></defs>
           <path d="M 28 30 A 22 22 0 0 1 72 30" stroke="url(#skyarc)" stroke-width="3" fill="none" stroke-linecap="round"/>
           <circle id="sun-marker" class="marker" cx="50" cy="8" r="4" fill="#fff"/>
         </svg>
       </div>
       <div class="panel" style="text-align:right">
-        <div class="label">SPEED</div>
-        <div class="big" id="hud-speed">0</div>
-        <div class="small">P · pause</div>
+        <div class="label">DEPTH</div>
+        <div class="big" id="hud-depth">1</div>
+        <div class="small" id="hud-speed">0 km/h</div>
       </div>
     </div>
-
-    <div class="energy-wrap">
-      <div class="energy-label">DREAM ENERGY</div>
-      <div class="energy-bar"><div class="energy-fill" id="energy-fill"></div></div>
+    <div class="status-chips" id="chips"></div>
+    <div class="hud-right">
+      <button class="fab" id="pause-btn" title="Pause (P)">❚❚</button>
+      <button class="fab" id="mute-btn" title="Sound">♪</button>
     </div>
-
-    <button class="pause-fab" id="pause-btn">❚❚</button>
-
-    <div class="touch-overlay hidden" id="touch">
-      <div class="joystick" id="joystick"><div class="joy-knob" id="joy-knob"></div></div>
-      <div class="pedals">
-        <div class="pedal down" id="pedal-down">▼</div>
-        <div class="pedal up" id="pedal-up">▲</div>
-      </div>
+    <div class="bars">
+      <div class="bar-label">DREAM ENERGY</div>
+      <div class="bar" id="energy-bar"><div class="bar-fill" id="energy-fill"></div></div>
+      <div class="bar-label" style="margin-top:6px">BOOST</div>
+      <div class="bar" id="boost-bar" style="height:7px"><div class="bar-fill" id="boost-fill"></div></div>
     </div>
+    <div class="steer-zone" id="steer-zone"></div>
+    <div class="ghost-knob" id="ghost-knob"><i id="ghost-dot"></i></div>
+    <div class="ctrl-btn" id="brake-btn"><span>▼</span>BRAKE</div>
+    <div class="ctrl-btn" id="boost-btn"><span>✦</span>BOOST</div>
+    <div class="hint" id="hint">Drag anywhere to steer · ✦ to boost</div>
+    <div class="banner" id="banner"><div class="t" id="banner-t"></div><div class="s" id="banner-s"></div></div>
+    <div class="toasts" id="toasts"></div>
   </div>
 
   <!-- Menu -->
@@ -185,24 +188,40 @@
     <div class="card">
       <div class="title">Liminal Drive</div>
       <div class="subtitle">a dreamcore driving sandbox</div>
-      <p class="body-text" style="margin-left:auto;margin-right:auto">
-        Drift through an endless, peaceful world of shifting biomes and skies.
-        Collect glowing orbs to sustain your dream. There is nowhere to go, and that is the point.
-      </p>
-      <div class="row">
-        <button class="btn-primary" id="start-btn">Begin Drifting →</button>
+      <div class="row" style="margin-bottom:10px"><span class="shards">◆ <span id="menu-shards">0</span> dream shards</span></div>
+      <div class="row"><button class="btn-primary" id="start-btn">Begin Drifting →</button></div>
+      <div class="tabs">
+        <button class="btn-ghost" data-tab="about">About</button>
+        <button class="btn-ghost" data-tab="missions">Missions</button>
+        <button class="btn-ghost" data-tab="garage">Garage</button>
+        <button class="btn-ghost" data-tab="ledger">Ledger</button>
+        <button class="btn-ghost" id="menu-mute">♪ Sound</button>
       </div>
-      <div class="row" style="margin-top:18px">
-        <button class="btn-ghost" id="help-btn">How to play</button>
+      <div id="tab-about" class="tab">
+        <p class="body-text">Drift through an endless world of shifting biomes and skies. Collect glowing orbs to sustain your dream.
+          Something in the dream is watching now — stay awake, stay moving.</p>
+        <div class="help">
+          <div><b>Desktop:</b> A/D or ◀ ▶ to steer · Space to boost · S to brake · P pause</div>
+          <div><b>Mobile:</b> Drag anywhere to steer · ✦ boost · ▼ brake</div>
+          <div style="opacity:.75;margin-top:6px">The car drives itself — you only steer. Chain orbs for a combo multiplier, skim past thorns for near-miss bonuses, and fill the boost bar to dash straight through anything.</div>
+        </div>
       </div>
-      <div class="help hidden" id="help-box">
-        <div><b>Desktop:</b> WASD or Arrow keys · P to pause · R to restart</div>
-        <div><b>Mobile:</b> Joystick to steer, pedals to drive · tap ❚❚ to pause</div>
-        <div style="opacity:.7;margin-top:6px">Collect glowing orbs to refill Dream Energy.</div>
+      <div id="tab-missions" class="tab hidden">
+        <div class="sec-title">TODAY'S MISSIONS · reset daily</div>
+        <div id="menu-missions"></div>
+        <div class="sec-title">ACHIEVEMENTS</div>
+        <div class="ach" id="menu-ach"></div>
+        <div class="sec-title">LIFETIME</div>
+        <div class="stats" id="menu-stats"></div>
       </div>
-      <div id="menu-ledger-wrap" class="hidden">
-        <div class="ledger-title" style="text-align:center">DREAM LEDGER</div>
-        <div class="ledger" id="menu-ledger" style="grid-template-columns:1fr auto"></div>
+      <div id="tab-garage" class="tab hidden">
+        <div class="sec-title">CAR</div><div class="grid" id="garage-skins"></div>
+        <div class="sec-title">TRAIL</div><div class="grid" id="garage-trails"></div>
+      </div>
+      <div id="tab-ledger" class="tab hidden">
+        <div class="sec-title">DREAM LEDGER</div>
+        <div class="ledger" id="menu-ledger"></div>
+        <div id="menu-ledger-empty" class="body-text" style="margin-top:8px">No dreams recorded yet.</div>
       </div>
     </div>
   </div>
@@ -210,35 +229,38 @@
   <!-- Paused -->
   <div id="paused" class="overlay hidden">
     <div class="card">
-      <div class="title" style="font-size:42px">Paused</div>
+      <div class="title" style="font-size:40px">Paused</div>
       <div class="subtitle" style="font-style:normal">The world waits for you.</div>
-      <div class="row">
-        <button class="btn-primary" id="resume-btn">Resume</button>
-        <button class="btn-ghost" id="restart-btn">Restart</button>
-      </div>
+      <div class="row"><button class="btn-primary" id="resume-btn">Resume</button><button class="btn-ghost" id="restart-btn">Restart</button><button class="btn-ghost" id="quit-btn">Menu</button></div>
     </div>
   </div>
 
   <!-- Game Over -->
   <div id="over" class="overlay hidden">
     <div class="card">
-      <div class="title" style="font-size:44px">The dream fades</div>
+      <div class="title" style="font-size:40px">The dream fades</div>
       <div class="subtitle" id="over-distance">you drifted 0 metres</div>
       <div class="final-score">
         <div class="label">FINAL SCORE</div>
-        <div class="big" id="over-score" style="font-size:42px">0</div>
+        <div class="big" id="over-score" style="font-size:40px">0</div>
         <div id="over-best" class="hidden" style="color:#f6c8ff;margin-top:4px">✧ new best ✧</div>
       </div>
-      <div class="row"><button class="btn-primary" id="again-btn">Drift again</button></div>
-      <div class="ledger-title" style="text-align:center">DREAM LEDGER</div>
+      <div class="stats" id="over-stats"></div>
+      <div class="row" style="margin-bottom:12px"><span class="shards">+<span id="over-shards">0</span> ◆ shards</span></div>
+      <div class="row">
+        <button class="btn-primary" id="revive-btn">✧ Hold on to the dream</button>
+        <button class="btn-primary" id="again-btn">Drift again</button>
+        <button class="btn-ghost" id="over-menu-btn">Menu</button>
+      </div>
+      <div class="sec-title">DREAM LEDGER</div>
       <div class="ledger" id="over-ledger"></div>
     </div>
   </div>
-
 <script>
 "use strict";
 /* =========================================================================
-   Liminal Drive — single-file dreamcore driving sandbox (vanilla JS)
+   Liminal Drive v2 — dreamcore driving sandbox with hazards, combos,
+   power-ups, missions, garage and audio. Vanilla JS, single file.
    ========================================================================= */
 
 /* ----------------------------- Noise ----------------------------------- */
@@ -251,38 +273,32 @@ function hash2(x, y, seed) {
 }
 function smooth(t) { return t * t * (3 - 2 * t); }
 function valueNoise2D(x, y, seed) {
-  seed = seed || 1337;
-  const xi = Math.floor(x), yi = Math.floor(y);
-  const xf = x - xi, yf = y - yi;
-  const v00 = hash2(xi, yi, seed), v10 = hash2(xi + 1, yi, seed);
-  const v01 = hash2(xi, yi + 1, seed), v11 = hash2(xi + 1, yi + 1, seed);
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const v00 = hash2(xi, yi, seed), v10 = hash2(xi + 1, yi, seed), v01 = hash2(xi, yi + 1, seed), v11 = hash2(xi + 1, yi + 1, seed);
   const u = smooth(xf), v = smooth(yf);
-  const a = v00 * (1 - u) + v10 * u;
-  const b = v01 * (1 - u) + v11 * u;
-  return a * (1 - v) + b * v;
+  return (v00 * (1 - u) + v10 * u) * (1 - v) + (v01 * (1 - u) + v11 * u) * v;
 }
 function fbm(x, y, octaves, seed) {
-  octaves = octaves || 4; seed = seed || 1337;
   let amp = 0.5, freq = 1, sum = 0, norm = 0;
-  for (let i = 0; i < octaves; i++) {
-    sum += valueNoise2D(x * freq, y * freq, seed + i * 101) * amp;
-    norm += amp; amp *= 0.5; freq *= 2;
-  }
+  for (let i = 0; i < octaves; i++) { sum += valueNoise2D(x * freq, y * freq, seed + i * 101) * amp; norm += amp; amp *= 0.5; freq *= 2; }
   return sum / norm;
 }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
 
 /* ----------------------------- Biomes ---------------------------------- */
 const BIOMES = {
-  meadow:   { name: "Emerald Meadow", ground: [120,190,130], groundAlt: [95,165,110], decorA: [70,130,80],  decorB: [255,225,120], fog: [190,220,200], density: .55, decor: "tree" },
-  desert:   { name: "Amber Dunes",    ground: [230,195,130], groundAlt: [210,170,110],decorA: [110,150,90], decorB: [220,130,90],  fog: [240,210,170], density: .25, decor: "cactus" },
-  tundra:   { name: "Hushed Tundra",  ground: [230,236,245], groundAlt: [200,215,235],decorA: [90,110,130], decorB: [180,200,220], fog: [220,230,245], density: .45, decor: "pine" },
-  sakura:   { name: "Petal Grove",    ground: [220,200,210], groundAlt: [200,175,190],decorA: [255,180,210],decorB: [255,220,230], fog: [255,220,235], density: .70, decor: "sakura" },
-  void:     { name: "Velvet Void",    ground: [55,40,90],    groundAlt: [40,25,70],   decorA: [180,130,255],decorB: [110,240,220], fog: [70,50,120],   density: .35, decor: "crystal" },
-  mushroom: { name: "Spore Hollow",   ground: [110,95,140],  groundAlt: [90,75,120],  decorA: [255,100,130],decorB: [240,220,140], fog: [180,150,200], density: .60, decor: "mushroom" },
+  meadow:   { name: "Emerald Meadow", ground: [120,190,130], groundAlt: [95,165,110], decorA: [70,130,80],  decorB: [255,225,120], density: .55, decor: "tree" },
+  desert:   { name: "Amber Dunes",    ground: [230,195,130], groundAlt: [210,170,110],decorA: [110,150,90], decorB: [220,130,90],  density: .25, decor: "cactus" },
+  tundra:   { name: "Hushed Tundra",  ground: [230,236,245], groundAlt: [200,215,235],decorA: [90,110,130], decorB: [180,200,220], density: .45, decor: "pine" },
+  sakura:   { name: "Petal Grove",    ground: [220,200,210], groundAlt: [200,175,190],decorA: [255,180,210],decorB: [255,220,230], density: .70, decor: "sakura" },
+  void:     { name: "Velvet Void",    ground: [55,40,90],    groundAlt: [40,25,70],   decorA: [180,130,255],decorB: [110,240,220], density: .35, decor: "crystal" },
+  mushroom: { name: "Spore Hollow",   ground: [110,95,140],  groundAlt: [90,75,120],  decorA: [255,100,130],decorB: [240,220,140], density: .60, decor: "mushroom" },
 };
+let WORLD_SEED = 42;
 function biomeAt(cx, cy) {
-  const n = fbm(cx * 0.008, cy * 0.008, 3, 42);
-  const m = fbm(cx * 0.008 + 100, cy * 0.008 - 100, 3, 91);
+  const n = fbm(cx * 0.008, cy * 0.008, 3, WORLD_SEED);
+  const m = fbm(cx * 0.008 + 100, cy * 0.008 - 100, 3, WORLD_SEED + 49);
   if (n < 0.32) return "void";
   if (n < 0.45) return "mushroom";
   if (n < 0.58) return m < 0.5 ? "sakura" : "meadow";
@@ -291,13 +307,7 @@ function biomeAt(cx, cy) {
 }
 function decorationAt(cx, cy, density) {
   const h = hash2(cx, cy, 7);
-  return {
-    present: h < density,
-    jx: hash2(cx, cy, 11) - 0.5,
-    jy: hash2(cx, cy, 13) - 0.5,
-    scale: 0.75 + hash2(cx, cy, 17) * 0.5,
-    hue: hash2(cx, cy, 19),
-  };
+  return { present: h < density, jx: hash2(cx, cy, 11) - 0.5, jy: hash2(cx, cy, 13) - 0.5, scale: 0.75 + hash2(cx, cy, 17) * 0.5, hue: hash2(cx, cy, 19) };
 }
 function lerpColor(a, b, t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
 function rgb(c, a) { return "rgba(" + (c[0]|0) + "," + (c[1]|0) + "," + (c[2]|0) + "," + (a == null ? 1 : a) + ")"; }
@@ -317,116 +327,245 @@ const SKY_KEYS = [
 function sampleSky(t) {
   t = ((t % 1) + 1) % 1;
   let a = SKY_KEYS[0], b = SKY_KEYS[SKY_KEYS.length - 1];
-  for (let i = 0; i < SKY_KEYS.length - 1; i++) {
-    if (t >= SKY_KEYS[i].t && t <= SKY_KEYS[i+1].t) { a = SKY_KEYS[i]; b = SKY_KEYS[i+1]; break; }
-  }
-  const span = (b.t - a.t) || 1;
-  const k = (t - a.t) / span;
-  const top = lerpColor(a.top, b.top, k);
-  const bottom = lerpColor(a.bottom, b.bottom, k);
-  const sun = lerpColor(a.sun, b.sun, k);
-  const ambient = a.ambient + (b.ambient - a.ambient) * k;
-  const stars = a.stars + (b.stars - a.stars) * k;
-  return {
-    top, bottom, sunColor: sun, ambient, starAlpha: stars,
-    label: k < 0.5 ? a.label : b.label,
-  };
+  for (let i = 0; i < SKY_KEYS.length - 1; i++) if (t >= SKY_KEYS[i].t && t <= SKY_KEYS[i+1].t) { a = SKY_KEYS[i]; b = SKY_KEYS[i+1]; break; }
+  const k = (t - a.t) / ((b.t - a.t) || 1);
+  return { top: lerpColor(a.top,b.top,k), bottom: lerpColor(a.bottom,b.bottom,k), sunColor: lerpColor(a.sun,b.sun,k),
+    ambient: lerp(a.ambient,b.ambient,k), starAlpha: lerp(a.stars,b.stars,k), label: k < 0.5 ? a.label : b.label };
 }
+
+/* --------------------------- Persistence ------------------------------- */
+const SAVE_KEY = "liminal_drive_save_v2";
+const HS_TABLE_KEY = "liminal_drive_hs_table_v1";
+const DEFAULT_SAVE = {
+  best: 0, shards: 0, skin: "dawn", trail: "mist", owned: { skins: ["dawn"], trails: ["mist"] }, muted: false,
+  seenTutorial: false, achievements: {},
+  life: { runs: 0, distance: 0, orbs: 0, nearMisses: 0, portals: 0, maxDepth: 0, boosts: 0, hits: 0, bestCombo: 0, time: 0 },
+  daily: { day: "", base: {}, claimed: {} },
+};
+function loadSave() {
+  try {
+    const r = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+    const s = Object.assign({}, DEFAULT_SAVE, r || {});
+    s.life = Object.assign({}, DEFAULT_SAVE.life, (r && r.life) || {});
+    s.owned = Object.assign({ skins: ["dawn"], trails: ["mist"] }, (r && r.owned) || {});
+    s.daily = Object.assign({ day: "", base: {}, claimed: {} }, (r && r.daily) || {});
+    // migrate old best
+    const old = Number(localStorage.getItem("liminal_drive_hs_v1") || 0);
+    if (old > s.best) s.best = old;
+    return s;
+  } catch (e) { return JSON.parse(JSON.stringify(DEFAULT_SAVE)); }
+}
+const SAVE = loadSave();
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }
+function loadTable() { try { const r = localStorage.getItem(HS_TABLE_KEY); return r ? JSON.parse(r) : []; } catch (e) { return []; } }
+function saveTable(t) { try { localStorage.setItem(HS_TABLE_KEY, JSON.stringify(t)); } catch (e) {} }
+
+/* ------------------------------ Content -------------------------------- */
+const SKINS = [
+  { id: "dawn",   name: "Dawn",     a: "#f6c8ff", b: "#8cf0e8", price: 0 },
+  { id: "peach",  name: "Peach",    a: "#ffd2a8", b: "#ff8fb0", price: 150 },
+  { id: "mint",   name: "Mint",     a: "#c8ffe6", b: "#66d9c2", price: 150 },
+  { id: "violet", name: "Violet",   a: "#c9a8ff", b: "#6b4dff", price: 300 },
+  { id: "ember",  name: "Ember",    a: "#ffe08a", b: "#ff5e62", price: 450 },
+  { id: "static", name: "Static",   a: "#ffffff", b: "#5e5e7a", price: 600 },
+  { id: "abyss",  name: "Abyss",    a: "#3a2a66", b: "#0a0714", price: 900 },
+  { id: "prism",  name: "Prism",    a: "rainbow", b: "rainbow", price: 1500 },
+];
+const TRAILS = [
+  { id: "mist",     name: "Mist",     price: 0,    desc: "soft fog" },
+  { id: "stardust", name: "Stardust", price: 200,  desc: "glowing sparks" },
+  { id: "petals",   name: "Petals",   price: 350,  desc: "drifting pink" },
+  { id: "neon",     name: "Neon",     price: 700,  desc: "cycling hue" },
+  { id: "echo",     name: "Echo",     price: 1200, desc: "ghost afterimages" },
+];
+const MISSION_POOL = [
+  { id: "orbs30",   text: "Collect 30 orbs",            type: "cum", key: "orbs",       target: 30,  reward: 60 },
+  { id: "orbs120",  text: "Collect 120 orbs",           type: "cum", key: "orbs",       target: 120, reward: 150 },
+  { id: "depth3",   text: "Reach Depth 3",              type: "run", key: "depth",      target: 3,   reward: 100 },
+  { id: "depth5",   text: "Reach Depth 5",              type: "run", key: "depth",      target: 5,   reward: 250 },
+  { id: "near10",   text: "10 near-misses",             type: "cum", key: "nearMisses", target: 10,  reward: 90 },
+  { id: "dist5k",   text: "Drift 5,000 m in one dream", type: "run", key: "metres",     target: 5000,reward: 120 },
+  { id: "combo15",  text: "Chain a 15-orb combo",       type: "run", key: "bestCombo",  target: 15,  reward: 130 },
+  { id: "boost5",   text: "Boost 5 times",              type: "cum", key: "boosts",     target: 5,   reward: 70 },
+  { id: "portal1",  text: "Slip through a portal",      type: "cum", key: "portals",    target: 1,   reward: 110 },
+  { id: "power4",   text: "Grab 4 power-ups",           type: "cum", key: "powerups",   target: 4,   reward: 90 },
+  { id: "score3k",  text: "Score 3,000 in one dream",   type: "run", key: "score",      target: 3000,reward: 120 },
+  { id: "clean90",  text: "Survive 90s without a hit",  type: "run", key: "cleanTime",  target: 90,  reward: 140 },
+];
+const ACHIEVEMENTS = [
+  { id: "first",   name: "First Light",    desc: "collect your first orb",     test: (l, r) => l.orbs + r.orbs >= 1 },
+  { id: "combo20", name: "Lucid Chain",    desc: "20-orb combo",               test: (l, r) => r.bestCombo >= 20 },
+  { id: "depth3",  name: "Deeper",         desc: "reach depth 3",              test: (l, r) => r.depth >= 3 },
+  { id: "depth6",  name: "REM Diver",      desc: "reach depth 6",              test: (l, r) => r.depth >= 6 },
+  { id: "score10k",name: "Ten Thousand",   desc: "score 10,000",               test: (l, r) => r.score >= 10000 },
+  { id: "portal",  name: "Elsewhere",      desc: "pass through a portal",      test: (l, r) => l.portals + r.portals >= 1 },
+  { id: "orbs500", name: "Collector",      desc: "500 orbs lifetime",          test: (l, r) => l.orbs + r.orbs >= 500 },
+  { id: "near50",  name: "Thread the Needle", desc: "50 near-misses lifetime", test: (l, r) => l.nearMisses + r.nearMisses >= 50 },
+  { id: "marathon",name: "Marathon",       desc: "drift 20 km lifetime",       test: (l, r) => l.distance + r.distanceUnits >= 2000000 },
+  { id: "untouched",name:"Untouched",      desc: "2 minutes without a hit",    test: (l, r) => r.cleanTime >= 120 },
+];
+const DEPTH_NAMES = ["", "Drowsy", "Drifting", "Sinking", "Deep Sleep", "REM", "Lucid Edge", "The Threshold", "Beyond"];
+function depthName(d) { return DEPTH_NAMES[Math.min(d, DEPTH_NAMES.length - 1)]; }
+
+function todayKey() { const d = new Date(); return d.getFullYear() + "-" + (d.getMonth()+1) + "-" + d.getDate(); }
+function dailyMissions() {
+  const key = todayKey();
+  if (SAVE.daily.day !== key) { SAVE.daily = { day: key, base: {}, claimed: {} }; persist(); }
+  const seed = key.split("-").reduce((a, v) => a * 31 + Number(v), 7) | 0;
+  const pool = MISSION_POOL.slice(), out = [];
+  for (let i = 0; i < 3 && pool.length; i++) { const idx = Math.floor(hash2(i, seed, 99) * pool.length); out.push(pool.splice(idx, 1)[0]); }
+  return out;
+}
+
+/* ------------------------------- Audio --------------------------------- */
+class Audio2 {
+  constructor() { this.ctx = null; this.master = null; this.padGain = null; this.muted = !!SAVE.muted; this.padNodes = []; }
+  ensure() {
+    if (this.ctx) { if (this.ctx.state === "suspended") this.ctx.resume(); return true; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
+    this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.gain.value = this.muted ? 0 : 0.6; this.master.connect(this.ctx.destination);
+    this.buildPad(); return true;
+  }
+  buildPad() {
+    const c = this.ctx; this.padGain = c.createGain(); this.padGain.gain.value = 0;
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 600; lp.Q.value = 0.7;
+    const lfo = c.createOscillator(); lfo.frequency.value = 0.07; const lfoG = c.createGain(); lfoG.gain.value = 250; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+    [110, 164.81, 220, 277.18].forEach((f, i) => {
+      const o = c.createOscillator(); o.type = i % 2 ? "triangle" : "sawtooth"; o.frequency.value = f; o.detune.value = (i - 1.5) * 6;
+      const g = c.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(lp); o.start(); this.padNodes.push(o);
+    });
+    lp.connect(this.padGain); this.padGain.connect(this.master);
+  }
+  setPad(on) { if (!this.ctx) return; this.padGain.gain.setTargetAtTime(on ? 1 : 0.25, this.ctx.currentTime, 1.5); }
+  toggleMute() { this.muted = !this.muted; SAVE.muted = this.muted; persist(); if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.6, this.ctx.currentTime, 0.05); return this.muted; }
+  tone(freq, dur, type, vol, slide) {
+    if (!this.ctx || this.muted) return; const c = this.ctx, t = c.currentTime;
+    const o = c.createOscillator(), g = c.createGain(); o.type = type || "sine"; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.02);
+  }
+  noise(dur, vol, freq) {
+    if (!this.ctx || this.muted) return; const c = this.ctx, t = c.currentTime, n = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const s = c.createBufferSource(); s.buffer = buf; const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = freq || 800;
+    const g = c.createGain(); g.gain.value = vol || 0.3; s.connect(f); f.connect(g); g.connect(this.master); s.start(t);
+  }
+  orb(combo) { const scale = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.7, 1318.5]; const f = scale[Math.min(scale.length - 1, Math.floor(combo / 2))]; this.tone(f, 0.25, "sine", 0.18); this.tone(f * 2, 0.15, "triangle", 0.06); }
+  hit() { this.noise(0.35, 0.5, 500); this.tone(110, 0.3, "square", 0.12, 0.5); }
+  near() { this.tone(1400, 0.08, "sine", 0.08, 1.4); }
+  boost() { this.tone(200, 0.6, "sawtooth", 0.1, 4); this.noise(0.5, 0.15, 2000); }
+  power() { [0, 0.08, 0.16, 0.24].forEach((d, i) => setTimeout(() => this.tone(660 * Math.pow(1.26, i), 0.3, "triangle", 0.15), d * 1000)); }
+  portal() { this.tone(100, 1.2, "sine", 0.2, 8); this.noise(1, 0.2, 3000); }
+  depth() { [0, 0.15, 0.3].forEach((d, i) => setTimeout(() => this.tone(330 * (i + 1) / 1.5, 0.5, "sine", 0.15), d * 1000)); }
+  over() { this.tone(440, 1.5, "sine", 0.2, 0.25); this.noise(1.2, 0.2, 400); }
+}
+const AUDIO = new Audio2();
+function haptic(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
 
 /* ------------------------------ Game ----------------------------------- */
 const CELL = 90;
-const HS_KEY = "liminal_drive_hs_v1";
-const HS_TABLE_KEY = "liminal_drive_hs_table_v1";
+const DEPTH_UNITS = 9000;          // world units per depth level
+const UNITS_PER_M = 6;             // world units per metre (display)
 
-function loadTable() {
-  try { const r = localStorage.getItem(HS_TABLE_KEY); return r ? JSON.parse(r) : []; } catch (e) { return []; }
+function newRunStats() {
+  return { orbs: 0, nearMisses: 0, boosts: 0, portals: 0, powerups: 0, depth: 1, metres: 0, distanceUnits: 0,
+    bestCombo: 0, score: 0, cleanTime: 0, hits: 0, time: 0 };
 }
-function saveTable(t) { localStorage.setItem(HS_TABLE_KEY, JSON.stringify(t)); }
 
 class Game {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d", { alpha: false });
-    this.width = 0; this.height = 0; this.dpr = 1;
+    this.width = 0; this.height = 0; this.dpr = 1; this.zoom = 1.3; this.zoomTarget = 1.3;
 
     this.carX = 0; this.carY = 0; this.carAngle = -Math.PI / 2;
-    this.speed = 0; this.targetSteer = 0; this.steer = 0;
-    this.maxSpeed = 320; this.accel = 260; this.decel = 200; this.friction = 90;
-
+    this.speed = 0; this.steer = 0; this.inputSteer = 0; this.pointerSteer = 0;
+    this.brakeHeld = false; this.boostHeld = false; this.pointerBrake = false; this.pointerBoost = false;
     this.keys = new Set();
-    this.touchSteer = 0; this.touchThrottle = 0;
 
     this.timeOfDay = 0.28; this.timeSpeed = 1 / 180;
-
-    this.score = 0; this.energy = 1; this.energyDrain = 0.018; this.distance = 0;
-    this.best = Number(localStorage.getItem(HS_KEY) || 0);
-
     this.status = "menu";
-    this.particles = []; this.floats = []; this.orbs = new Map();
-    this.shake = 0; this.flashAlpha = 0; this.flashColor = [255,255,255];
-    this.ambient = [];
-    this.lastTs = 0; this.raf = 0; this.hudAccum = 0;
-    this.zoom = 1.4;
+    this.onHud = null; this.onGameOver = null; this.onEvent = null;
 
-    this.onHud = null; this.onGameOver = null;
+    this.cells = new Map(); this.wisps = []; this.particles = []; this.floats = []; this.echoes = []; this.ambient = [];
+    this.shake = 0; this.flashAlpha = 0; this.flashColor = [255,255,255];
+    this.lastTs = 0; this.raf = 0; this.hudAccum = 0; this.missionAccum = 0;
+    this.resetRun();
 
     this.resize();
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("keydown", (e) => this.onKeyDown(e));
     window.addEventListener("keyup", (e) => this.onKeyUp(e));
+    document.addEventListener("visibilitychange", () => { if (document.hidden && this.status === "playing") this.pause(); });
     this.seedAmbient();
+  }
+
+  resetRun() {
+    this.score = 0; this.energy = 1; this.distance = 0; this.depth = 1;
+    this.combo = 0; this.comboT = 0; this.mult = 1;
+    this.boostMeter = 0.35; this.boostOn = false; this.shield = false; this.magnetT = 0; this.lucidT = 0; this.invulnT = 0;
+    this.inPuddle = false; this.revives = 1; this.wispTimer = 3; this.cleanTimer = 0;
+    this.run = newRunStats(); this.lastHitT = -99;
   }
 
   resize() {
     const rect = this.canvas.getBoundingClientRect();
     this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.width = rect.width; this.height = rect.height;
-    this.canvas.width = Math.floor(rect.width * this.dpr);
-    this.canvas.height = Math.floor(rect.height * this.dpr);
+    this.canvas.width = Math.floor(rect.width * this.dpr); this.canvas.height = Math.floor(rect.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.zoom = Math.min(this.width, this.height) > 700 ? 1.4 : 1.1;
+    this.baseZoom = Math.min(this.width, this.height) > 700 ? 1.35 : 1.0;
   }
 
+  /* ------------------------------- Input ------------------------------ */
   onKeyDown(e) {
     const k = e.key.toLowerCase();
-    if (k === "p" || k === "escape") {
-      if (this.status === "playing") this.pause();
-      else if (this.status === "paused") this.resume();
-      return;
-    }
-    if (k === "r" && (this.status === "over" || this.status === "paused")) { this.start(); return; }
+    if (k === "p" || k === "escape") { if (this.status === "playing") this.pause(); else if (this.status === "paused") this.resume(); this.emit("status"); return; }
+    if (k === "r" && (this.status === "over" || this.status === "paused")) { this.start(); this.emit("status"); return; }
+    if (k === "m") { this.emit("mute"); return; }
+    if ((k === " " || k === "enter") && this.status === "menu") { this.start(); this.emit("status"); return; }
     this.keys.add(k);
     if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].indexOf(k) >= 0) e.preventDefault();
   }
   onKeyUp(e) { this.keys.delete(e.key.toLowerCase()); }
+  setPointerSteer(v) { this.pointerSteer = clamp(v, -1, 1); }
+  setPointerBoost(b) { this.pointerBoost = b; }
+  setPointerBrake(b) { this.pointerBrake = b; }
+  emit(name, data) { if (this.onEvent) this.onEvent(name, data); }
 
-  setTouch(steer, throttle) {
-    this.touchSteer = Math.max(-1, Math.min(1, steer));
-    this.touchThrottle = Math.max(-1, Math.min(1, throttle));
-  }
-
+  /* ------------------------------ Flow -------------------------------- */
   start() {
-    this.carX = 0; this.carY = 0; this.carAngle = -Math.PI / 2;
-    this.speed = 0; this.steer = 0; this.score = 0; this.energy = 1; this.distance = 0;
-    this.particles.length = 0; this.floats.length = 0; this.orbs.clear();
-    this.timeOfDay = 0.28; this.shake = 0; this.flashAlpha = 0;
-    this.status = "playing";
+    WORLD_SEED = 42 + Math.floor(Math.random() * 1000);
+    this.carX = 0; this.carY = 0; this.carAngle = -Math.PI / 2; this.speed = 120; this.steer = 0;
+    this.cells.clear(); this.wisps.length = 0; this.particles.length = 0; this.floats.length = 0; this.echoes.length = 0;
+    this.timeOfDay = 0.22 + Math.random() * 0.5; this.shake = 0; this.flashAlpha = 0;
+    this.resetRun();
+    this.status = "playing"; AUDIO.ensure(); AUDIO.setPad(true);
+    this.emit("start");
   }
-  pause() { if (this.status === "playing") this.status = "paused"; }
-  resume() { if (this.status === "paused") this.status = "playing"; }
+  pause() { if (this.status === "playing") { this.status = "paused"; AUDIO.setPad(false); } }
+  resume() { if (this.status === "paused") { this.status = "playing"; this.lastTs = 0; AUDIO.ensure(); AUDIO.setPad(true); } }
+  quitToMenu() { this.status = "menu"; AUDIO.setPad(false); }
 
   gameOver() {
     if (this.status === "over") return;
-    this.status = "over";
-    const isNew = this.score > this.best;
-    if (isNew) { this.best = Math.floor(this.score); localStorage.setItem(HS_KEY, String(this.best)); }
+    this.status = "over"; AUDIO.over(); AUDIO.setPad(false); haptic([60, 40, 120]);
+    const isNew = this.score > SAVE.best;
+    if (isNew) SAVE.best = Math.floor(this.score);
     this.shake = 24; this.flashAlpha = 0.6; this.flashColor = [255,220,240];
-    for (let i = 0; i < 60; i++) {
-      const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 220;
-      this.particles.push({ x: this.carX, y: this.carY, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
-        life: 1.2, maxLife: 1.2, size: 2+Math.random()*3, color: [255,200,240], glow: true });
-    }
+    this.burst(this.carX, this.carY, 60, [255,200,240], 220);
+    this.run.score = Math.floor(this.score);
     if (this.onGameOver) this.onGameOver(Math.floor(this.score), isNew);
+  }
+  revive() {
+    if (this.status !== "over" || this.revives <= 0) return false;
+    this.revives--; this.energy = 0.6; this.invulnT = 3; this.speed = 140; this.combo = 0; this.mult = 1;
+    this.clearThreatsNear(400); this.wisps.length = 0;
+    this.flashAlpha = 0.5; this.flashColor = [200,255,240]; this.status = "playing"; this.lastTs = 0;
+    AUDIO.ensure(); AUDIO.setPad(true); AUDIO.power();
+    this.toast("You held on. Stay awake.");
+    return true;
   }
 
   loop(ts) {
@@ -434,8 +573,7 @@ class Game {
     if (!this.lastTs) this.lastTs = ts;
     let dt = (ts - this.lastTs) / 1000; this.lastTs = ts;
     if (dt > 0.05) dt = 0.05;
-    this.update(dt);
-    this.render();
+    this.update(dt); this.render();
     this.hudAccum += dt;
     if (this.hudAccum >= 0.1 || this.status !== "playing") { this.hudAccum = 0; this.pushHud(); }
   }
@@ -443,257 +581,324 @@ class Game {
   pushHud() {
     if (!this.onHud) return;
     const sky = sampleSky(this.timeOfDay);
-    const cell = this.cellKey(this.carX, this.carY);
-    const biome = BIOMES[biomeAt(cell.cx, cell.cy)];
+    const biome = BIOMES[biomeAt(Math.floor(this.carX / CELL), Math.floor(this.carY / CELL))];
     this.onHud({
-      score: Math.floor(this.score), best: Math.max(this.best, Math.floor(this.score)),
-      energy: this.energy, speed: Math.abs(this.speed), biome: biome.name,
-      time: sky.label, status: this.status, timeOfDay: this.timeOfDay,
+      score: Math.floor(this.score), best: Math.max(SAVE.best, Math.floor(this.score)), energy: this.energy, boost: this.boostMeter, boostOn: this.boostOn,
+      speed: Math.abs(this.speed), biome: biome.name, time: sky.label, status: this.status, timeOfDay: this.timeOfDay,
+      depth: this.depth, combo: this.combo, mult: this.mult, shield: this.shield, magnetT: this.magnetT, lucidT: this.lucidT, revives: this.revives,
     });
   }
 
-  cellKey(x, y) { return { cx: Math.floor(x / CELL), cy: Math.floor(y / CELL) }; }
+  toast(text) { this.emit("toast", text); }
+  float(x, y, text, color) { this.floats.push({ x, y, text, life: 1.1, maxLife: 1.1, color }); }
+  burst(x, y, n, color, spd) {
+    for (let i = 0; i < n; i++) { const a = Math.random()*Math.PI*2, s = spd*0.3 + Math.random()*spd;
+      this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 0.6+Math.random()*0.6, maxLife: 1.2, size: 2+Math.random()*3, color, glow: true }); }
+  }
 
+  /* ----------------------------- Update ------------------------------- */
   update(dt) {
     if (this.status !== "playing") {
-      this.updateParticles(dt * (this.status === "over" ? 1 : 0.3));
-      this.updateAmbient(dt);
+      this.updateParticles(dt * (this.status === "over" ? 1 : 0.3)); this.updateAmbient(dt);
       if (this.status === "menu") {
         this.timeOfDay = (this.timeOfDay + this.timeSpeed * dt * 3) % 1;
-        this.carAngle += 0.05 * dt;
-        this.carX += Math.cos(this.carAngle) * 20 * dt;
-        this.carY += Math.sin(this.carAngle) * 20 * dt;
-        this.spawnNearbyOrbs();
-        this.orbs.forEach((o) => { o.phase += dt * 3; });
+        this.carAngle += 0.05 * dt; this.carX += Math.cos(this.carAngle) * 20 * dt; this.carY += Math.sin(this.carAngle) * 20 * dt;
+        this.populateCells(); this.cells.forEach((c) => { if (c) c.phase += dt * 3; });
       }
-      this.flashAlpha *= 0.9; this.shake *= 0.9;
+      this.flashAlpha *= 0.9; this.shake *= 0.9; this.zoom += (this.baseZoom - this.zoom) * 0.05;
       return;
     }
+    this.run.time += dt;
 
-    let throttle = 0;
-    if (this.keys.has("w") || this.keys.has("arrowup")) throttle += 1;
-    if (this.keys.has("s") || this.keys.has("arrowdown")) throttle -= 1;
-    throttle += this.touchThrottle;
-    throttle = Math.max(-1, Math.min(1, throttle));
-
-    let steer = 0;
+    /* --- input --- */
+    let steer = this.pointerSteer;
     if (this.keys.has("a") || this.keys.has("arrowleft")) steer -= 1;
     if (this.keys.has("d") || this.keys.has("arrowright")) steer += 1;
-    steer += this.touchSteer;
-    steer = Math.max(-1, Math.min(1, steer));
-    this.targetSteer = steer;
-    this.steer += (this.targetSteer - this.steer) * Math.min(1, dt * 10);
+    steer = clamp(steer, -1, 1);
+    this.steer += (steer - this.steer) * Math.min(1, dt * 12);
+    const brake = this.pointerBrake || this.keys.has("s") || this.keys.has("arrowdown");
+    const wantBoost = this.pointerBoost || this.keys.has(" ") || this.keys.has("shift") || this.keys.has("w") || this.keys.has("arrowup");
 
-    if (throttle > 0) this.speed += this.accel * throttle * dt;
-    else if (throttle < 0) this.speed += this.decel * throttle * dt;
-    else {
-      const drag = this.friction * dt;
-      if (this.speed > drag) this.speed -= drag;
-      else if (this.speed < -drag) this.speed += drag;
-      else this.speed = 0;
-    }
-    this.speed = Math.max(-this.maxSpeed * 0.4, Math.min(this.maxSpeed, this.speed));
+    /* --- boost --- */
+    if (wantBoost && !this.boostOn && this.boostMeter >= 0.25) { this.boostOn = true; this.run.boosts++; AUDIO.boost(); haptic(30); this.emit("boostStart"); }
+    if (this.boostOn) { this.boostMeter -= 0.28 * dt; if (!wantBoost || this.boostMeter <= 0) { this.boostOn = false; this.boostMeter = Math.max(0, this.boostMeter); } }
 
-    const speedFactor = Math.min(1, Math.abs(this.speed) / 80);
-    const turnRate = 2.4 * this.steer * speedFactor * Math.sign(this.speed || 1);
-    this.carAngle += turnRate * dt;
+    /* --- speed --- */
+    const cruise = Math.min(350, 225 + (this.depth - 1) * 12);
+    let target = brake ? 80 : cruise;
+    if (this.boostOn) target = cruise * 1.65;
+    if (this.inPuddle && !this.boostOn) target *= 0.5;
+    const rate = this.speed > target ? (brake ? 420 : 240) : (this.boostOn ? 500 : 200);
+    this.speed = this.speed < target ? Math.min(target, this.speed + rate * dt) : Math.max(target, this.speed - rate * dt);
 
+    const turn = (2.7 - Math.min(0.8, this.speed / 900)) * this.steer;
+    this.carAngle += turn * dt;
     this.carX += Math.cos(this.carAngle) * this.speed * dt;
     this.carY += Math.sin(this.carAngle) * this.speed * dt;
-    this.distance += Math.abs(this.speed) * dt;
+    this.distance += this.speed * dt;
+    this.run.distanceUnits = this.distance; this.run.metres = Math.floor(this.distance / UNITS_PER_M);
+    this.zoomTarget = this.baseZoom * (this.boostOn ? 0.88 : 1); this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * 3);
 
+    /* --- depth --- */
+    const nd = 1 + Math.floor(this.distance / DEPTH_UNITS);
+    if (nd !== this.depth) { this.depth = nd; this.run.depth = nd; this.energy = Math.min(1, this.energy + 0.15); AUDIO.depth(); haptic([20,30,20]);
+      this.emit("banner", { t: "Depth " + nd, s: depthName(nd) + " · the dream thickens" }); }
+
+    /* --- timers --- */
     this.timeOfDay = (this.timeOfDay + this.timeSpeed * dt) % 1;
+    if (this.magnetT > 0) this.magnetT -= dt; if (this.lucidT > 0) this.lucidT -= dt; if (this.invulnT > 0) this.invulnT -= dt;
+    if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.combo = 0; this.mult = 1; } }
+    this.cleanTimer += dt; this.run.cleanTime = Math.max(this.run.cleanTime, this.cleanTimer);
+    this.run.bestCombo = Math.max(this.run.bestCombo, this.combo);
 
-    this.energy -= this.energyDrain * dt;
-    this.score += Math.abs(this.speed) * dt * 0.05;
+    /* --- energy & score --- */
+    const drain = Math.min(0.048, 0.02 + (this.depth - 1) * 0.0035);
+    this.energy -= drain * dt;
+    const scoreMul = (this.boostOn ? 2 : 1) * (this.lucidT > 0 ? 2 : 1);
+    this.score += this.speed * dt * 0.05 * scoreMul;
+    this.run.score = Math.floor(this.score);
     if (this.energy <= 0) { this.energy = 0; this.gameOver(); return; }
 
-    this.spawnNearbyOrbs();
-    this.updateOrbs(dt);
-    this.updateParticles(dt);
-    this.updateFloats(dt);
-    this.updateAmbient(dt);
-    this.emitTrail(dt);
+    /* --- world --- */
+    this.populateCells();
+    this.updateCells(dt);
+    this.updateWisps(dt);
+    this.updateParticles(dt); this.updateFloats(dt); this.updateAmbient(dt); this.emitTrail(dt);
+    this.missionAccum += dt; if (this.missionAccum > 0.5) { this.missionAccum = 0; this.emit("progress"); }
 
-    this.shake *= Math.pow(0.001, dt);
-    this.flashAlpha *= Math.pow(0.02, dt);
-  }
-
-  emitTrail(dt) {
-    const sp = Math.abs(this.speed);
-    if (sp < 40) return;
-    let count = sp * 0.15 * dt;
-    const sky = sampleSky(this.timeOfDay);
-    while (count > 0) {
-      if (Math.random() > count) break;
-      count -= 1;
-      const back = -18, side = (Math.random() - 0.5) * 14, ang = this.carAngle;
-      const bx = this.carX + Math.cos(ang)*back + Math.cos(ang + Math.PI/2)*side;
-      const by = this.carY + Math.sin(ang)*back + Math.sin(ang + Math.PI/2)*side;
-      this.particles.push({
-        x: bx, y: by,
-        vx: -Math.cos(ang)*(20+Math.random()*30) + (Math.random()-.5)*20,
-        vy: -Math.sin(ang)*(20+Math.random()*30) + (Math.random()-.5)*20,
-        life: 0.8 + Math.random()*0.5, maxLife: 1.2, size: 2+Math.random()*3,
-        color: [200 + sky.bottom[0]/255*55, 180 + sky.bottom[1]/255*55, 220 + sky.bottom[2]/255*35],
-      });
-    }
+    this.shake *= Math.pow(0.001, dt); this.flashAlpha *= Math.pow(0.02, dt);
   }
 
-  updateParticles(dt) {
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const p = this.particles[i];
-      p.life -= dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= 0.96; p.vy *= 0.96;
-      if (p.life <= 0) this.particles.splice(i, 1);
-    }
-  }
-  updateFloats(dt) {
-    for (let i = this.floats.length - 1; i >= 0; i--) {
-      const f = this.floats[i]; f.life -= dt; f.y -= 40*dt;
-      if (f.life <= 0) this.floats.splice(i, 1);
-    }
-  }
-  seedAmbient() {
-    this.ambient = [];
-    for (let i = 0; i < 40; i++) this.ambient.push({
-      x: (Math.random()-.5)*1200, y: (Math.random()-.5)*1200,
-      vx: (Math.random()-.5)*8, vy: 5+Math.random()*10,
-      size: 1+Math.random()*2.5, phase: Math.random()*Math.PI*2,
-    });
-  }
-  updateAmbient(dt) {
-    for (const p of this.ambient) {
-      p.phase += dt*2;
-      p.x += (p.vx + Math.sin(p.phase)*6)*dt; p.y += p.vy*dt;
-      const rx = p.x - this.carX, ry = p.y - this.carY, R = 700;
-      if (rx > R) p.x -= R*2; if (rx < -R) p.x += R*2;
-      if (ry > R) p.y -= R*2; if (ry < -R) p.y += R*2;
-    }
-  }
-
-  spawnNearbyOrbs() {
-    const cell = this.cellKey(this.carX, this.carY), R = 6;
+  /* --------------------------- Cells / spawns -------------------------- */
+  hazardDensity() { return Math.min(0.05, 0.012 + (this.depth - 1) * 0.006); }
+  populateCells() {
+    const ccx = Math.floor(this.carX / CELL), ccy = Math.floor(this.carY / CELL), R = 9;
     for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
-      const cx = cell.cx + dx, cy = cell.cy + dy, key = cx + "," + cy;
-      if (this.orbs.has(key)) continue;
-      if (hash2(cx, cy, 555) < 0.055) {
-        const biome = BIOMES[biomeAt(cx, cy)];
-        this.orbs.set(key, {
-          x: cx*CELL + hash2(cx,cy,31)*CELL, y: cy*CELL + hash2(cx,cy,37)*CELL,
-          phase: Math.random()*Math.PI*2, color: biome.decorB, taken: false,
-        });
-      } else this.orbs.set(key, { x:0, y:0, phase:0, color:[0,0,0], taken: true });
+      const cx = ccx + dx, cy = ccy + dy, key = cx + "," + cy;
+      if (this.cells.has(key)) continue;
+      this.cells.set(key, this.makeCell(cx, cy));
     }
-    if (this.orbs.size > 4000) {
-      this.orbs.forEach((o, k) => {
-        if (Math.abs(o.x - this.carX) > CELL*15 || Math.abs(o.y - this.carY) > CELL*15) this.orbs.delete(k);
-      });
+    if (this.cells.size > 2200) {
+      const lim = CELL * 14;
+      this.cells.forEach((c, k) => { const p = k.split(","); if (Math.abs(p[0]*CELL - this.carX) > lim || Math.abs(p[1]*CELL - this.carY) > lim) this.cells.delete(k); });
     }
   }
-  updateOrbs(dt) {
-    this.orbs.forEach((o) => {
-      if (o.taken) return;
-      o.phase += dt*3;
-      const dx = o.x - this.carX, dy = o.y - this.carY;
-      if (dx*dx + dy*dy < 26*26) {
-        o.taken = true;
-        const gained = 50 + Math.floor(Math.abs(this.speed)*0.2);
-        this.score += gained; this.energy = Math.min(1, this.energy + 0.18);
-        this.shake = Math.max(this.shake, 6);
-        this.flashAlpha = Math.max(this.flashAlpha, 0.15); this.flashColor = o.color;
-        this.floats.push({ x:o.x, y:o.y, text:"+"+gained, life:1, maxLife:1, color: rgb(o.color,1) });
-        for (let i = 0; i < 22; i++) {
-          const a = Math.random()*Math.PI*2, s = 60+Math.random()*140;
-          this.particles.push({ x:o.x, y:o.y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
-            life:0.7+Math.random()*0.4, maxLife:1.1, size:2+Math.random()*3, color:o.color, glow:true });
-        }
+  makeCell(cx, cy) {
+    const x = cx*CELL + hash2(cx,cy,31)*CELL, y = cy*CELL + hash2(cx,cy,37)*CELL;
+    const originDist = Math.hypot(x - 0, y - 0), fromCar = Math.hypot(x - this.carX, y - this.carY);
+    const biome = BIOMES[biomeAt(cx, cy)];
+    const base = { x, y, phase: Math.random()*Math.PI*2, taken: false, color: biome.decorB, rot: hash2(cx,cy,41)*Math.PI*2 };
+    if (hash2(cx, cy, 555) < 0.075) return Object.assign(base, { type: "orb" });
+    if (this.status !== "playing") return null;
+    if (hash2(cx, cy, 888) < 0.0038) {
+      const k = hash2(cx, cy, 889); const kind = k < 0.3 ? "shield" : k < 0.55 ? "magnet" : k < 0.8 ? "lucid" : "burst";
+      return Object.assign(base, { type: "power", kind });
+    }
+    if (originDist > 1500 && hash2(cx, cy, 999) < 0.0011) return Object.assign(base, { type: "portal" });
+    if (originDist > 380 && fromCar > 220 && hash2(cx, cy, 777) < this.hazardDensity()) {
+      const k = hash2(cx, cy, 778); const kind = k < 0.55 ? "thorn" : k < 0.78 ? "static" : "puddle";
+      return Object.assign(base, { type: "hazard", kind, near: false, size: kind === "puddle" ? 34 + hash2(cx,cy,42)*16 : 18 + hash2(cx,cy,42)*8 });
+    }
+    return null;
+  }
+  clearThreatsNear(r) { this.cells.forEach((c) => { if (c && c.type === "hazard" && Math.hypot(c.x - this.carX, c.y - this.carY) < r) c.taken = true; }); }
+
+  updateCells(dt) {
+    const cx = this.carX, cy = this.carY, sp = this.speed;
+    const pickR = this.lucidT > 0 ? 58 : 34, magnetR = this.magnetT > 0 ? 260 : 0;
+    let puddle = false;
+    this.cells.forEach((c) => {
+      if (!c || c.taken) return;
+      c.phase += dt * 3;
+      const dx = c.x - cx, dy = c.y - cy, d2 = dx*dx + dy*dy;
+      if (d2 > 1200*1200) return;
+      const d = Math.sqrt(d2);
+      if (c.type === "orb") {
+        if (magnetR && d < magnetR && d > 4) { const pull = (520 + sp) * dt; c.x -= dx/d*pull; c.y -= dy/d*pull; }
+        if (d < pickR) this.collectOrb(c);
+      } else if (c.type === "power") {
+        if (d < 42) this.collectPower(c);
+      } else if (c.type === "portal") {
+        if (d < 40) this.enterPortal(c);
+      } else if (c.type === "hazard") {
+        if (c.kind === "puddle") { if (d < c.size) puddle = true; return; }
+        if (d < c.size + 14) this.hitHazard(c);
+        else if (!c.near && d < c.size + 52 && sp > 150) { c.near = true; this.nearMiss(c); }
       }
     });
+    if (puddle && !this.inPuddle) { this.float(cx, cy - 30, "sinking…", "#c9b8ff"); }
+    this.inPuddle = puddle;
   }
+
+  collectOrb(o) {
+    o.taken = true;
+    this.combo++; this.comboT = 3.5; this.mult = Math.min(5, 1 + Math.floor(this.combo / 5));
+    const mul = this.mult * (this.lucidT > 0 ? 2 : 1) * (this.boostOn ? 2 : 1);
+    const gained = Math.floor((50 + this.speed * 0.2) * mul);
+    this.score += gained; this.energy = Math.min(1, this.energy + 0.14); this.boostMeter = Math.min(1, this.boostMeter + 0.09);
+    this.run.orbs++;
+    this.shake = Math.max(this.shake, 4); this.flashAlpha = Math.max(this.flashAlpha, 0.12); this.flashColor = o.color;
+    this.float(o.x, o.y, "+" + gained + (this.mult > 1 ? "  ×" + this.mult : ""), rgb(o.color, 1));
+    this.burst(o.x, o.y, 18, o.color, 140); AUDIO.orb(this.combo); haptic(8);
+    if (this.combo > 0 && this.combo % 10 === 0) { this.toast(this.combo + " chain! ×" + this.mult); }
+  }
+  collectPower(p) {
+    p.taken = true; this.run.powerups++; AUDIO.power(); haptic([15, 20, 15]);
+    this.burst(p.x, p.y, 30, [255,255,255], 200); this.flashAlpha = 0.25; this.flashColor = [255,255,255];
+    if (p.kind === "shield") { this.shield = true; this.float(p.x, p.y, "SHIELD", "#8cf0e8"); }
+    else if (p.kind === "magnet") { this.magnetT = 14; this.float(p.x, p.y, "MAGNET", "#f6c86a"); }
+    else if (p.kind === "lucid") { this.lucidT = 9; this.float(p.x, p.y, "LUCID ×2", "#f6c8ff"); }
+    else if (p.kind === "burst") {
+      let n = 0; this.cells.forEach((c) => { if (c && !c.taken && c.type === "orb" && Math.hypot(c.x - this.carX, c.y - this.carY) < 460) { n++; this.collectOrb(c); } });
+      this.float(p.x, p.y - 30, "BURST +" + n, "#ffb8d6"); this.shake = 12;
+    }
+    this.score += 100 * this.mult;
+  }
+  enterPortal(p) {
+    p.taken = true; this.run.portals++; AUDIO.portal(); haptic([30, 50, 80]);
+    const a = Math.random() * Math.PI * 2, dist = 20000 + Math.random() * 30000;
+    this.carX += Math.cos(a) * dist; this.carY += Math.sin(a) * dist;
+    this.timeOfDay = Math.random(); this.wisps.length = 0; this.cells.clear(); this.populateCells(); this.clearThreatsNear(420);
+    const g = 300 * this.mult; this.score += g; this.energy = Math.min(1, this.energy + 0.25); this.invulnT = 2;
+    this.flashAlpha = 1; this.flashColor = [255,255,255]; this.shake = 10;
+    this.emit("banner", { t: "Elsewhere", s: "you slipped into another dream  +" + g });
+  }
+  nearMiss(h) {
+    this.run.nearMisses++; const g = 25 * this.mult; this.score += g; this.boostMeter = Math.min(1, this.boostMeter + 0.06);
+    this.float(this.carX + (h.x - this.carX) * 0.5, this.carY + (h.y - this.carY) * 0.5, "close! +" + g, "#ffffff"); AUDIO.near();
+  }
+  hitHazard(h) {
+    if (this.boostOn) { h.taken = true; this.burst(h.x, h.y, 26, [255,120,180], 260); this.score += 40 * this.mult; this.float(h.x, h.y, "shattered +" + 40*this.mult, "#ffb8d6"); this.shake = 6; AUDIO.near(); return; }
+    if (this.invulnT > 0) return;
+    if (this.shield) { this.shield = false; h.taken = true; this.invulnT = 1; this.burst(h.x, h.y, 26, [140,240,232], 220); this.float(this.carX, this.carY - 30, "shield broke", "#8cf0e8"); this.shake = 8; AUDIO.near(); haptic(30); return; }
+    this.takeDamage(h.kind === "static" ? 0.2 : 0.15); h.taken = true;
+  }
+  takeDamage(amount) {
+    this.energy -= amount; this.speed *= 0.45; this.combo = 0; this.mult = 1; this.comboT = 0; this.invulnT = 1.3;
+    this.run.hits++; this.cleanTimer = 0;
+    this.shake = 18; this.flashAlpha = 0.45; this.flashColor = [255,70,110]; AUDIO.hit(); haptic(90);
+    this.float(this.carX, this.carY - 36, "−" + Math.round(amount*100) + " energy", "#ff7a9d");
+    this.burst(this.carX, this.carY, 24, [255,90,130], 200);
+    if (this.energy <= 0) { this.energy = 0; this.gameOver(); }
+  }
+
+  /* ------------------------------ Wisps ------------------------------- */
+  updateWisps(dt) {
+    const maxW = this.depth >= 2 ? Math.min(5, this.depth - 1) : 0;
+    this.wispTimer -= dt;
+    if (this.wisps.length < maxW && this.wispTimer <= 0) {
+      this.wispTimer = 5 - Math.min(2.5, this.depth * 0.3);
+      const a = this.carAngle + (Math.random() - 0.5) * 1.6, d = 520 + Math.random() * 260;
+      this.wisps.push({ x: this.carX + Math.cos(a)*d, y: this.carY + Math.sin(a)*d, vx: 0, vy: 0, phase: Math.random()*6, life: 0 });
+    }
+    const chase = 70 + this.depth * 14;
+    for (let i = this.wisps.length - 1; i >= 0; i--) {
+      const w = this.wisps[i]; w.phase += dt * 2; w.life += dt;
+      const dx = this.carX - w.x, dy = this.carY - w.y, d = Math.hypot(dx, dy) || 1;
+      const wob = Math.sin(w.phase) * 40;
+      w.vx += ((dx/d*chase - dy/d*wob) - w.vx) * dt * 1.5; w.vy += ((dy/d*chase + dx/d*wob) - w.vy) * dt * 1.5;
+      w.x += w.vx*dt; w.y += w.vy*dt;
+      if (d > 1300) { this.wisps.splice(i, 1); continue; }
+      if (d < 30) {
+        if (this.boostOn || this.invulnT > 0.9) { this.wisps.splice(i, 1); if (this.boostOn) { this.score += 100*this.mult; this.float(w.x, w.y, "banished +" + 100*this.mult, "#f6c8ff"); this.burst(w.x, w.y, 30, [90,60,120], 220); AUDIO.near(); } continue; }
+        if (this.shield) { this.shield = false; this.invulnT = 1; this.wisps.splice(i, 1); this.float(this.carX, this.carY-30, "shield broke", "#8cf0e8"); this.burst(w.x, w.y, 26, [140,240,232], 220); AUDIO.near(); continue; }
+        this.takeDamage(0.18); this.wisps.splice(i, 1); this.float(w.x, w.y - 20, "it touched you", "#c9b8ff");
+      }
+    }
+  }
+
+  /* ---------------------------- Particles ----------------------------- */
+  emitTrail(dt) {
+    const sp = this.speed; if (sp < 40) return;
+    const trail = SAVE.trail, sky = sampleSky(this.timeOfDay), ang = this.carAngle;
+    if (trail === "echo") { this.echoTimer = (this.echoTimer || 0) + dt; if (this.echoTimer > 0.06) { this.echoTimer = 0; this.echoes.push({ x: this.carX, y: this.carY, a: ang, life: 0.5, steer: this.steer }); if (this.echoes.length > 14) this.echoes.shift(); } }
+    for (let i = this.echoes.length - 1; i >= 0; i--) { this.echoes[i].life -= dt; if (this.echoes[i].life <= 0) this.echoes.splice(i, 1); }
+    let count = sp * (this.boostOn ? 0.35 : 0.15) * dt;
+    while (count > 0) {
+      if (Math.random() > count) break; count -= 1;
+      const side = (Math.random() - 0.5) * 14;
+      const bx = this.carX + Math.cos(ang)*-18 + Math.cos(ang + Math.PI/2)*side, by = this.carY + Math.sin(ang)*-18 + Math.sin(ang + Math.PI/2)*side;
+      let color, glow = false, size = 2 + Math.random()*3;
+      if (this.boostOn) { color = [255, 140 + Math.random()*100, 220]; glow = true; }
+      else if (trail === "stardust") { color = [255, 240, 200]; glow = true; size = 1.5 + Math.random()*2; }
+      else if (trail === "petals") { color = [255, 170 + Math.random()*50, 210]; size = 3 + Math.random()*3; }
+      else if (trail === "neon") { const h = (performance.now()*0.2) % 360; const c = hsl(h, 1, 0.65); color = c; glow = true; }
+      else color = [200 + sky.bottom[0]/255*55, 180 + sky.bottom[1]/255*55, 220 + sky.bottom[2]/255*35];
+      this.particles.push({ x: bx, y: by, vx: -Math.cos(ang)*(20+Math.random()*30) + (Math.random()-.5)*20, vy: -Math.sin(ang)*(20+Math.random()*30) + (Math.random()-.5)*20,
+        life: 0.8 + Math.random()*0.5, maxLife: 1.2, size, color, glow });
+    }
+    if (Math.abs(this.steer) > 0.7 && sp > 200 && Math.random() < 0.5) {
+      const s = Math.sign(this.steer) * 9, bx = this.carX + Math.cos(ang + Math.PI/2)*s, by = this.carY + Math.sin(ang + Math.PI/2)*s;
+      this.particles.push({ x: bx, y: by, vx: (Math.random()-.5)*30, vy: (Math.random()-.5)*30, life: 0.5, maxLife: 0.5, size: 2, color: [255,255,255] });
+    }
+    if (this.particles.length > 500) this.particles.splice(0, this.particles.length - 500);
+  }
+  updateParticles(dt) { for (let i = this.particles.length - 1; i >= 0; i--) { const p = this.particles[i]; p.life -= dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= 0.96; p.vy *= 0.96; if (p.life <= 0) this.particles.splice(i, 1); } }
+  updateFloats(dt) { for (let i = this.floats.length - 1; i >= 0; i--) { const f = this.floats[i]; f.life -= dt; f.y -= 40*dt; if (f.life <= 0) this.floats.splice(i, 1); } }
+  seedAmbient() { this.ambient = []; for (let i = 0; i < 40; i++) this.ambient.push({ x: (Math.random()-.5)*1200, y: (Math.random()-.5)*1200, vx: (Math.random()-.5)*8, vy: 5+Math.random()*10, size: 1+Math.random()*2.5, phase: Math.random()*Math.PI*2 }); }
+  updateAmbient(dt) { for (const p of this.ambient) { p.phase += dt*2; p.x += (p.vx + Math.sin(p.phase)*6)*dt; p.y += p.vy*dt; const rx = p.x - this.carX, ry = p.y - this.carY, R = 700; if (rx > R) p.x -= R*2; if (rx < -R) p.x += R*2; if (ry > R) p.y -= R*2; if (ry < -R) p.y += R*2; } }
 
   /* ------------------------- Rendering ------------------------- */
   render() {
-    const ctx = this.ctx, w = this.width, h = this.height;
-    const sky = sampleSky(this.timeOfDay);
+    const ctx = this.ctx, w = this.width, h = this.height, sky = sampleSky(this.timeOfDay);
     this.drawSky(ctx, w, h, sky);
     if (sky.starAlpha > 0.02) this.drawStars(ctx, w, h, sky.starAlpha);
     this.drawSun(ctx, w, h, sky);
 
+    const playing = this.status === "playing" || this.status === "paused" || this.status === "over";
+    const camRot = playing ? -(this.carAngle + Math.PI/2) : 0;
+    const cy = playing ? h * 0.64 : h / 2;
     const shakeX = (Math.random()-.5)*this.shake, shakeY = (Math.random()-.5)*this.shake;
     ctx.save();
-    ctx.translate(w/2 + shakeX, h/2 + shakeY);
-    ctx.scale(this.zoom, this.zoom);
-    ctx.translate(-this.carX, -this.carY);
-    this.drawGround(ctx, sky);
-    this.drawDecorations(ctx, sky);
-    this.drawOrbs(ctx);
+    ctx.translate(w/2 + shakeX, cy + shakeY); ctx.scale(this.zoom, this.zoom); ctx.rotate(camRot); ctx.translate(-this.carX, -this.carY);
+    const R = Math.hypot(w, h) / (2 * this.zoom) + CELL;
+    this.drawGround(ctx, sky, R);
+    this.drawDecorations(ctx, sky, R);
+    this.drawCells(ctx, R, camRot);
+    this.drawWisps(ctx);
     this.drawParticles(ctx);
-    this.drawFloats(ctx);
-    this.drawAmbient(ctx);
-    this.drawCar(ctx);
+    this.drawEchoes(ctx);
+    this.drawAmbient(ctx, sky);
+    this.drawCar(ctx, sky);
+    this.drawFloats(ctx, camRot);
     ctx.restore();
 
     this.drawVignette(ctx, w, h, sky);
+    if (this.boostOn) this.drawSpeedLines(ctx, w, h);
     if (this.flashAlpha > 0.01) { ctx.fillStyle = rgb(this.flashColor, this.flashAlpha); ctx.fillRect(0,0,w,h); }
   }
-
-  drawSky(ctx, w, h, sky) {
-    const g = ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0, rgb(sky.top)); g.addColorStop(1, rgb(sky.bottom));
-    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-  }
+  drawSky(ctx, w, h, sky) { const g = ctx.createLinearGradient(0,0,0,h); g.addColorStop(0, rgb(sky.top)); g.addColorStop(1, rgb(sky.bottom)); ctx.fillStyle = g; ctx.fillRect(0,0,w,h); }
   drawStars(ctx, w, h, alpha) {
     const now = performance.now();
-    for (let i = 0; i < 120; i++) {
-      const x = hash2(i,1,3)*w, y = hash2(i,2,3)*h*0.6, s = hash2(i,3,3)*1.6+0.3;
-      const tw = 0.5 + 0.5*Math.sin(now*0.001*(0.5+hash2(i,4,3)*2) + i);
-      ctx.fillStyle = "rgba(255,240,255," + (alpha*tw*0.9) + ")";
-      ctx.fillRect(x, y, s, s);
-    }
+    for (let i = 0; i < 120; i++) { const x = hash2(i,1,3)*w, y = hash2(i,2,3)*h*0.6, s = hash2(i,3,3)*1.6+0.3, tw = 0.5 + 0.5*Math.sin(now*0.001*(0.5+hash2(i,4,3)*2) + i);
+      ctx.fillStyle = "rgba(255,240,255," + (alpha*tw*0.9) + ")"; ctx.fillRect(x, y, s, s); }
   }
   drawSun(ctx, w, h, sky) {
-    const elev = Math.sin(this.timeOfDay*Math.PI*2 - Math.PI/2);
-    const horizon = h*0.62, isNight = elev < -0.05;
-    const bodyElev = isNight ? -elev : elev;
-    const yPos = horizon - bodyElev*horizon*0.75;
-    const xPos = w*0.5 + Math.sin(this.timeOfDay*Math.PI*2 + (isNight?Math.PI:0))*w*0.35;
-    const color = isNight ? [230,230,255] : sky.sunColor;
-    const size = isNight ? 42 : 60;
-    const grad = ctx.createRadialGradient(xPos,yPos,0,xPos,yPos,size*4);
-    grad.addColorStop(0, rgb(color,0.85)); grad.addColorStop(0.2, rgb(color,0.3)); grad.addColorStop(1, rgb(color,0));
+    const elev = Math.sin(this.timeOfDay*Math.PI*2 - Math.PI/2), horizon = h*0.62, isNight = elev < -0.05, bodyElev = isNight ? -elev : elev;
+    const yPos = horizon - bodyElev*horizon*0.75, xPos = w*0.5 + Math.sin(this.timeOfDay*Math.PI*2 + (isNight?Math.PI:0))*w*0.35;
+    const color = isNight ? [230,230,255] : sky.sunColor, size = isNight ? 42 : 60;
+    const grad = ctx.createRadialGradient(xPos,yPos,0,xPos,yPos,size*4); grad.addColorStop(0, rgb(color,0.85)); grad.addColorStop(0.2, rgb(color,0.3)); grad.addColorStop(1, rgb(color,0));
     ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
     ctx.beginPath(); ctx.arc(xPos,yPos,size,0,Math.PI*2); ctx.fillStyle = rgb(color,0.95); ctx.fill();
-    if (isNight) {
-      ctx.fillStyle = rgb(sky.top, 0.85);
-      ctx.beginPath(); ctx.arc(xPos - size*0.35, yPos - size*0.1, size*0.9, 0, Math.PI*2); ctx.fill();
-    }
+    if (isNight) { ctx.fillStyle = rgb(sky.top, 0.85); ctx.beginPath(); ctx.arc(xPos - size*0.35, yPos - size*0.1, size*0.9, 0, Math.PI*2); ctx.fill(); }
   }
-  drawGround(ctx, sky) {
-    const halfW = (this.width/this.zoom)*0.55, halfH = (this.height/this.zoom)*0.55;
-    const c0 = Math.floor((this.carX-halfW)/CELL)-1, c1 = Math.floor((this.carX+halfW)/CELL)+1;
-    const r0 = Math.floor((this.carY-halfH)/CELL)-1, r1 = Math.floor((this.carY+halfH)/CELL)+1;
+  cellRange(R) { return { c0: Math.floor((this.carX-R)/CELL), c1: Math.floor((this.carX+R)/CELL), r0: Math.floor((this.carY-R)/CELL), r1: Math.floor((this.carY+R)/CELL) }; }
+  drawGround(ctx, sky, R) {
+    const { c0, c1, r0, r1 } = this.cellRange(R);
     for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
-      const biome = BIOMES[biomeAt(cx,cy)];
-      const alt = hash2(cx,cy,3) < 0.5 ? biome.ground : biome.groundAlt;
+      const biome = BIOMES[biomeAt(cx,cy)], alt = hash2(cx,cy,3) < 0.5 ? biome.ground : biome.groundAlt;
       const col = [alt[0]*sky.ambient, alt[1]*sky.ambient, alt[2]*sky.ambient];
-      const tinted = [col[0]*0.85+sky.bottom[0]*0.15, col[1]*0.85+sky.bottom[1]*0.15, col[2]*0.85+sky.bottom[2]*0.15];
-      ctx.fillStyle = rgb(tinted);
-      ctx.fillRect(cx*CELL, cy*CELL, CELL+0.5, CELL+0.5);
+      ctx.fillStyle = rgb([col[0]*0.85+sky.bottom[0]*0.15, col[1]*0.85+sky.bottom[1]*0.15, col[2]*0.85+sky.bottom[2]*0.15]);
+      ctx.fillRect(cx*CELL, cy*CELL, CELL+0.7, CELL+0.7);
     }
     ctx.fillStyle = "rgba(255,255,255," + (0.05*sky.ambient) + ")";
-    for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++)
-      ctx.fillRect(cx*CELL + CELL/2 - 1, cy*CELL + CELL/2 - 1, 2, 2);
+    for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) ctx.fillRect(cx*CELL + CELL/2 - 1, cy*CELL + CELL/2 - 1, 2, 2);
   }
-  drawDecorations(ctx, sky) {
-    const halfW = (this.width/this.zoom)*0.55, halfH = (this.height/this.zoom)*0.55;
-    const c0 = Math.floor((this.carX-halfW)/CELL)-1, c1 = Math.floor((this.carX+halfW)/CELL)+1;
-    const r0 = Math.floor((this.carY-halfH)/CELL)-1, r1 = Math.floor((this.carY+halfH)/CELL)+1;
+  drawDecorations(ctx, sky, R) {
+    const { c0, c1, r0, r1 } = this.cellRange(R);
     for (let cy = r0; cy <= r1; cy++) for (let cx = c0; cx <= c1; cx++) {
-      const biome = BIOMES[biomeAt(cx,cy)];
-      const d = decorationAt(cx, cy, biome.density);
-      if (!d.present) continue;
-      const wx = cx*CELL + (d.jx+0.5)*CELL, wy = cy*CELL + (d.jy+0.5)*CELL;
-      this.drawDecor(ctx, biome.decor, wx, wy, d.scale, d.hue, biome, sky);
+      const biome = BIOMES[biomeAt(cx,cy)], d = decorationAt(cx, cy, biome.density); if (!d.present) continue;
+      this.drawDecor(ctx, biome.decor, cx*CELL + (d.jx+0.5)*CELL, cy*CELL + (d.jy+0.5)*CELL, d.scale, d.hue, biome, sky);
     }
   }
   drawDecor(ctx, kind, x, y, scale, hue, biome, sky) {
@@ -703,8 +908,7 @@ class Game {
       ctx.fillStyle = rgb([80*amb,55*amb,40*amb]); ctx.fillRect(x-2*scale,y-4,4*scale,10*scale);
       const c1 = [biome.decorA[0]*amb, biome.decorA[1]*amb, biome.decorA[2]*amb];
       ctx.fillStyle = rgb(c1); ctx.beginPath(); ctx.arc(x,y-6,14*scale,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle = rgb([Math.min(255,c1[0]+30),Math.min(255,c1[1]+30),Math.min(255,c1[2]+30)]);
-      ctx.beginPath(); ctx.arc(x-5*scale,y-10,8*scale,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = rgb([Math.min(255,c1[0]+30),Math.min(255,c1[1]+30),Math.min(255,c1[2]+30)]); ctx.beginPath(); ctx.arc(x-5*scale,y-10,8*scale,0,Math.PI*2); ctx.fill();
     } else if (kind === "cactus") {
       ctx.fillStyle = "rgba(0,0,20,0.25)"; ctx.beginPath(); ctx.ellipse(x+4,y+10,10*scale,4*scale,0,0,Math.PI*2); ctx.fill();
       ctx.fillStyle = rgb([biome.decorA[0]*amb,biome.decorA[1]*amb,biome.decorA[2]*amb]);
@@ -712,95 +916,161 @@ class Game {
       if (hue < 0.3) { ctx.fillStyle = rgb(biome.decorB); ctx.beginPath(); ctx.arc(x,y-14,3*scale,0,Math.PI*2); ctx.fill(); }
     } else if (kind === "pine") {
       ctx.fillStyle = "rgba(0,20,40,0.25)"; ctx.beginPath(); ctx.ellipse(x+4,y+8,12*scale,5*scale,0,0,Math.PI*2); ctx.fill();
-      const c = [biome.decorA[0]*amb,biome.decorA[1]*amb,biome.decorA[2]*amb]; ctx.fillStyle = rgb(c);
-      for (let i = 0; i < 3; i++) { const s = scale*(1-i*0.2);
-        ctx.beginPath(); ctx.moveTo(x,y-20*scale+i*8*scale); ctx.lineTo(x-10*s,y-6*scale+i*8*scale); ctx.lineTo(x+10*s,y-6*scale+i*8*scale); ctx.closePath(); ctx.fill(); }
-      ctx.fillStyle = "rgba(255,255,255," + (0.6*amb) + ")";
-      ctx.beginPath(); ctx.moveTo(x,y-20*scale); ctx.lineTo(x-4*scale,y-14*scale); ctx.lineTo(x+4*scale,y-14*scale); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = rgb([biome.decorA[0]*amb,biome.decorA[1]*amb,biome.decorA[2]*amb]);
+      for (let i = 0; i < 3; i++) { const s = scale*(1-i*0.2); ctx.beginPath(); ctx.moveTo(x,y-20*scale+i*8*scale); ctx.lineTo(x-10*s,y-6*scale+i*8*scale); ctx.lineTo(x+10*s,y-6*scale+i*8*scale); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle = "rgba(255,255,255," + (0.6*amb) + ")"; ctx.beginPath(); ctx.moveTo(x,y-20*scale); ctx.lineTo(x-4*scale,y-14*scale); ctx.lineTo(x+4*scale,y-14*scale); ctx.closePath(); ctx.fill();
     } else if (kind === "sakura") {
       ctx.fillStyle = "rgba(80,20,60,0.2)"; ctx.beginPath(); ctx.ellipse(x+5,y+8,14*scale,6*scale,0,0,Math.PI*2); ctx.fill();
       ctx.fillStyle = rgb([60*amb,40*amb,40*amb]); ctx.fillRect(x-2*scale,y-4,4*scale,10*scale);
       const base = [biome.decorA[0]*amb,biome.decorA[1]*amb,biome.decorA[2]*amb];
-      for (let i = 0; i < 5; i++) { const ang = i/5*Math.PI*2; const dx = Math.cos(ang)*6*scale, dy = Math.sin(ang)*5*scale-6;
-        ctx.fillStyle = rgb(base, 0.9); ctx.beginPath(); ctx.arc(x+dx,y+dy,8*scale,0,Math.PI*2); ctx.fill(); }
-      ctx.fillStyle = rgb([Math.min(255,base[0]+20),Math.min(255,base[1]+30),Math.min(255,base[2]+20)]);
-      ctx.beginPath(); ctx.arc(x,y-6,8*scale,0,Math.PI*2); ctx.fill();
+      for (let i = 0; i < 5; i++) { const ang = i/5*Math.PI*2; ctx.fillStyle = rgb(base, 0.9); ctx.beginPath(); ctx.arc(x+Math.cos(ang)*6*scale,y+Math.sin(ang)*5*scale-6,8*scale,0,Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = rgb([Math.min(255,base[0]+20),Math.min(255,base[1]+30),Math.min(255,base[2]+20)]); ctx.beginPath(); ctx.arc(x,y-6,8*scale,0,Math.PI*2); ctx.fill();
     } else if (kind === "crystal") {
       ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(x+4,y+8,10*scale,4*scale,0,0,Math.PI*2); ctx.fill();
-      const glow = 0.5 + 0.5*Math.sin(performance.now()*0.002 + hue*6); const c = biome.decorA;
-      ctx.save(); ctx.shadowColor = rgb(c,0.9); ctx.shadowBlur = 12*glow; ctx.fillStyle = rgb(c,0.9);
-      ctx.beginPath(); ctx.moveTo(x,y-18*scale); ctx.lineTo(x-6*scale,y); ctx.lineTo(x,y+6*scale); ctx.lineTo(x+6*scale,y); ctx.closePath(); ctx.fill(); ctx.restore();
-      ctx.fillStyle = "rgba(255,255,255," + (0.6+0.3*glow) + ")";
-      ctx.beginPath(); ctx.moveTo(x,y-18*scale); ctx.lineTo(x-2*scale,y-4*scale); ctx.lineTo(x,y); ctx.closePath(); ctx.fill();
+      const glow = 0.5 + 0.5*Math.sin(performance.now()*0.002 + hue*6), c = biome.decorA;
+      ctx.fillStyle = rgb(c,0.9); ctx.beginPath(); ctx.moveTo(x,y-18*scale); ctx.lineTo(x-6*scale,y); ctx.lineTo(x,y+6*scale); ctx.lineTo(x+6*scale,y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255," + (0.6+0.3*glow) + ")"; ctx.beginPath(); ctx.moveTo(x,y-18*scale); ctx.lineTo(x-2*scale,y-4*scale); ctx.lineTo(x,y); ctx.closePath(); ctx.fill();
     } else if (kind === "mushroom") {
       ctx.fillStyle = "rgba(0,0,20,0.3)"; ctx.beginPath(); ctx.ellipse(x+4,y+8,12*scale,5*scale,0,0,Math.PI*2); ctx.fill();
       ctx.fillStyle = rgb([230*amb,220*amb,210*amb]); ctx.fillRect(x-3*scale,y-2,6*scale,12*scale);
-      const cap = [biome.decorA[0]*amb,biome.decorA[1]*amb,biome.decorA[2]*amb]; ctx.fillStyle = rgb(cap);
-      ctx.beginPath(); ctx.arc(x,y-4,12*scale,Math.PI,0); ctx.fill();
+      ctx.fillStyle = rgb([biome.decorA[0]*amb,biome.decorA[1]*amb,biome.decorA[2]*amb]); ctx.beginPath(); ctx.arc(x,y-4,12*scale,Math.PI,0); ctx.fill();
       ctx.fillStyle = "rgba(255,255,255," + (0.8*amb) + ")";
-      ctx.beginPath(); ctx.arc(x-4*scale,y-6,2*scale,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x+3*scale,y-8,1.6*scale,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x+5*scale,y-4,1.2*scale,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x-4*scale,y-6,2*scale,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+3*scale,y-8,1.6*scale,0,Math.PI*2); ctx.fill();
     }
   }
-  drawOrbs(ctx) {
-    this.orbs.forEach((o) => {
-      if (o.taken) return;
-      const bob = Math.sin(o.phase)*3, size = 8 + Math.sin(o.phase*1.5)*1.5;
-      ctx.save(); ctx.shadowColor = rgb(o.color,0.9); ctx.shadowBlur = 18; ctx.fillStyle = rgb(o.color,0.95);
-      ctx.beginPath(); ctx.arc(o.x, o.y+bob, size, 0, Math.PI*2); ctx.fill();
-      ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.beginPath(); ctx.arc(o.x-2, o.y+bob-2, size*0.35, 0, Math.PI*2); ctx.fill(); ctx.restore();
+  drawCells(ctx, R, camRot) {
+    const now = performance.now();
+    this.cells.forEach((c) => {
+      if (!c || c.taken) return;
+      if (Math.abs(c.x - this.carX) > R || Math.abs(c.y - this.carY) > R) return;
+      if (c.type === "orb") {
+        const bob = Math.sin(c.phase)*3, size = 8 + Math.sin(c.phase*1.5)*1.5;
+        ctx.save(); ctx.shadowColor = rgb(c.color,0.9); ctx.shadowBlur = 18; ctx.fillStyle = rgb(c.color,0.95);
+        ctx.beginPath(); ctx.arc(c.x, c.y+bob, size, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.arc(c.x-2, c.y+bob-2, size*0.35, 0, Math.PI*2); ctx.fill(); ctx.restore();
+      } else if (c.type === "hazard") this.drawHazard(ctx, c, now);
+      else if (c.type === "power") this.drawPower(ctx, c, now, camRot);
+      else if (c.type === "portal") this.drawPortal(ctx, c, now);
     });
+  }
+  drawHazard(ctx, c, now) {
+    ctx.save(); ctx.translate(c.x, c.y);
+    if (c.kind === "thorn") {
+      ctx.rotate(c.rot + now*0.0004);
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(4, 8, c.size, c.size*0.4, 0, 0, Math.PI*2); ctx.fill();
+      ctx.shadowColor = "rgba(255,60,120,0.9)"; ctx.shadowBlur = 14;
+      ctx.fillStyle = "#2a1038"; ctx.beginPath();
+      for (let i = 0; i < 12; i++) { const r = i % 2 ? c.size*0.45 : c.size, a = i/12*Math.PI*2; ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r); }
+      ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255,90,140,0.8)"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = "rgba(255,120,160,0.9)"; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill();
+    } else if (c.kind === "static") {
+      const s = c.size, j = (Math.random()-0.5)*2;
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-s+4, -s+8, s*2, s*2);
+      ctx.fillStyle = "#14101c"; ctx.fillRect(-s + j, -s, s*2, s*2);
+      for (let i = 0; i < 8; i++) { const yy = -s + Math.random()*s*2; ctx.fillStyle = "rgba(" + (200+Math.random()*55|0) + "," + (200+Math.random()*55|0) + ",255," + (0.3+Math.random()*0.6) + ")"; ctx.fillRect(-s + Math.random()*s, yy, Math.random()*s*1.5, 1 + Math.random()*2); }
+      ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 1; ctx.strokeRect(-s, -s, s*2, s*2);
+      if (Math.random() < 0.08) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(-s, -s, s*2, s*2); }
+    } else if (c.kind === "puddle") {
+      const s = c.size, g = ctx.createRadialGradient(0, 0, 0, 0, 0, s);
+      g.addColorStop(0, "rgba(20,10,50,0.85)"); g.addColorStop(0.7, "rgba(30,15,70,0.7)"); g.addColorStop(1, "rgba(40,20,90,0.0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, s, s*0.8, c.rot, 0, Math.PI*2); ctx.fill();
+      const rp = ((now*0.0006 + c.phase) % 1);
+      ctx.strokeStyle = "rgba(200,180,255," + (0.5*(1-rp)) + ")"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(0, 0, s*rp, s*0.8*rp, c.rot, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.beginPath(); ctx.ellipse(-s*0.3, -s*0.25, s*0.25, s*0.1, c.rot - 0.5, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  drawPower(ctx, c, now, camRot) {
+    const col = c.kind === "shield" ? "#8cf0e8" : c.kind === "magnet" ? "#f6c86a" : c.kind === "lucid" ? "#f6c8ff" : "#ffb8d6";
+    const bob = Math.sin(c.phase)*4;
+    ctx.save(); ctx.translate(c.x, c.y + bob);
+    ctx.shadowColor = col; ctx.shadowBlur = 20; ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(20,10,40,0.7)";
+    ctx.save(); ctx.rotate(now*0.002); ctx.beginPath(); ctx.moveTo(0,-18); ctx.lineTo(18,0); ctx.lineTo(0,18); ctx.lineTo(-18,0); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.shadowBlur = 0; ctx.rotate(-camRot); ctx.strokeStyle = "#fff"; ctx.fillStyle = "#fff"; ctx.lineWidth = 2;
+    if (c.kind === "shield") { ctx.beginPath(); ctx.arc(0,0,7,0,Math.PI*2); ctx.stroke(); }
+    else if (c.kind === "magnet") { ctx.beginPath(); ctx.arc(0,-1,6,Math.PI,0,true); ctx.moveTo(-6,-1); ctx.lineTo(-6,6); ctx.moveTo(6,-1); ctx.lineTo(6,6); ctx.stroke(); }
+    else if (c.kind === "lucid") { ctx.beginPath(); ctx.ellipse(0,0,9,5,0,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,2.5,0,Math.PI*2); ctx.fill(); }
+    else { ctx.beginPath(); for (let i = 0; i < 10; i++) { const r = i%2?3:8, a = i/10*Math.PI*2 - Math.PI/2; ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r); } ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+  }
+  drawPortal(ctx, c, now) {
+    ctx.save(); ctx.translate(c.x, c.y);
+    const g = ctx.createRadialGradient(0,0,0,0,0,40); g.addColorStop(0, "rgba(255,255,255,0.9)"); g.addColorStop(0.4, "rgba(200,150,255,0.5)"); g.addColorStop(1, "rgba(140,240,232,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill();
+    ctx.rotate(now*0.0015); ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = 3; ctx.setLineDash([10, 8]); ctx.beginPath(); ctx.arc(0,0,36,0,Math.PI*2); ctx.stroke();
+    ctx.rotate(-now*0.003); ctx.strokeStyle = "rgba(140,240,232,0.8)"; ctx.lineWidth = 2; ctx.setLineDash([4, 10]); ctx.beginPath(); ctx.arc(0,0,26,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+  drawWisps(ctx) {
+    for (const w of this.wisps) {
+      const a = Math.min(1, w.life); ctx.save(); ctx.translate(w.x, w.y);
+      const g = ctx.createRadialGradient(0,0,0,0,0,34); g.addColorStop(0, "rgba(10,5,20," + 0.95*a + ")"); g.addColorStop(0.6, "rgba(30,15,50," + 0.6*a + ")"); g.addColorStop(1, "rgba(60,30,90,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,34,0,Math.PI*2); ctx.fill();
+      const wob = Math.sin(w.phase*3)*2;
+      ctx.fillStyle = "rgba(255,255,255," + 0.9*a + ")"; ctx.beginPath(); ctx.arc(-6, -2 + wob, 2.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(6, -2 + wob, 2.5, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
   }
   drawParticles(ctx) {
     for (const p of this.particles) {
       const a = Math.max(0, p.life/p.maxLife);
-      if (p.glow) { ctx.save(); ctx.shadowColor = rgb(p.color,a); ctx.shadowBlur = 10; ctx.fillStyle = rgb(p.color,a);
-        ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2); ctx.fill(); ctx.restore();
-      } else { ctx.fillStyle = rgb(p.color, a*0.7); ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2); ctx.fill(); }
+      if (p.glow) { ctx.save(); ctx.shadowColor = rgb(p.color,a); ctx.shadowBlur = 10; ctx.fillStyle = rgb(p.color,a); ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+      else { ctx.fillStyle = rgb(p.color, a*0.7); ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2); ctx.fill(); }
     }
   }
-  drawFloats(ctx) {
+  drawEchoes(ctx) {
+    for (const e of this.echoes) { ctx.save(); ctx.globalAlpha = e.life * 0.5; ctx.translate(e.x, e.y); ctx.rotate(e.a + Math.PI/2); ctx.fillStyle = "#c9b8ff"; this.roundRect(ctx,-11,-18,22,36,8); ctx.fill(); ctx.restore(); }
+  }
+  drawFloats(ctx, camRot) {
     for (const f of this.floats) {
       const a = Math.max(0, f.life/f.maxLife);
-      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = f.color;
-      ctx.font = "bold 16px system-ui, sans-serif"; ctx.textAlign = "center";
-      ctx.fillText(f.text, f.x, f.y); ctx.restore();
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(f.x, f.y); ctx.rotate(-camRot); ctx.fillStyle = f.color;
+      ctx.font = "bold 15px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 4; ctx.fillText(f.text, 0, 0); ctx.restore();
     }
   }
-  drawAmbient(ctx) {
-    const sky = sampleSky(this.timeOfDay);
-    const col = "rgba(" + (255*sky.ambient|0) + "," + (220*sky.ambient|0) + "," + (240*sky.ambient|0) + ",0.55)";
-    ctx.fillStyle = col;
+  drawAmbient(ctx, sky) {
+    ctx.fillStyle = "rgba(" + (255*sky.ambient|0) + "," + (220*sky.ambient|0) + "," + (240*sky.ambient|0) + ",0.55)";
     for (const p of this.ambient) { ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); }
   }
-  drawCar(ctx) {
-    const sky = sampleSky(this.timeOfDay);
-    ctx.save(); ctx.translate(this.carX, this.carY); ctx.rotate(this.carAngle + Math.PI/2);
+  drawCar(ctx, sky) {
+    const skin = SKINS.find((s) => s.id === SAVE.skin) || SKINS[0];
+    const blink = this.invulnT > 0 && Math.floor(performance.now()/80) % 2 === 0;
+    ctx.save(); ctx.translate(this.carX, this.carY); ctx.rotate(this.carAngle + Math.PI/2 + this.steer*0.10);
+    if (this.magnetT > 0) { ctx.strokeStyle = "rgba(246,200,106," + (0.25 + 0.15*Math.sin(performance.now()*0.01)) + ")"; ctx.lineWidth = 2; ctx.setLineDash([6,8]); ctx.beginPath(); ctx.arc(0,0,60,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); }
+    if (this.shield) { ctx.save(); ctx.shadowColor = "#8cf0e8"; ctx.shadowBlur = 16; ctx.strokeStyle = "rgba(140,240,232,0.85)"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.stroke(); ctx.fillStyle = "rgba(140,240,232,0.12)"; ctx.fill(); ctx.restore(); }
+    if (this.lucidT > 0) { ctx.save(); ctx.shadowColor = "#f6c8ff"; ctx.shadowBlur = 24; ctx.fillStyle = "rgba(246,200,255,0.18)"; ctx.beginPath(); ctx.arc(0,0,40,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+    if (blink) ctx.globalAlpha = 0.45;
     ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(2,4,14,18,0,0,Math.PI*2); ctx.fill();
-    const grad = ctx.createLinearGradient(-12,-20,12,20); grad.addColorStop(0,"#f6c8ff"); grad.addColorStop(1,"#8cf0e8");
-    ctx.fillStyle = grad; this.roundRect(ctx,-11,-18,22,36,8); ctx.fill();
+    let a = skin.a, b = skin.b;
+    if (skin.a === "rainbow") { const hh = (performance.now()*0.08) % 360; a = "hsl(" + hh + ",100%,80%)"; b = "hsl(" + ((hh+90)%360) + ",100%,65%)"; }
+    const grad = ctx.createLinearGradient(-12,-20,12,20); grad.addColorStop(0,a); grad.addColorStop(1,b);
+    if (this.boostOn) { ctx.shadowColor = "#ffb8d6"; ctx.shadowBlur = 22; }
+    ctx.fillStyle = grad; this.roundRect(ctx,-11,-18,22,36,8); ctx.fill(); ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(30,20,60,0.75)"; this.roundRect(ctx,-8,-10,16,10,3); ctx.fill();
-    ctx.fillStyle = "rgba(255,240,200,0.95)";
-    ctx.beginPath(); ctx.arc(-6,-17,2,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(6,-17,2,0,Math.PI*2); ctx.fill();
-    if (sky.ambient < 0.75) {
-      const cone = ctx.createLinearGradient(0,-18,0,-140); cone.addColorStop(0,"rgba(255,240,200,0.55)"); cone.addColorStop(1,"rgba(255,240,200,0)");
-      ctx.fillStyle = cone; ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(-45,-140); ctx.lineTo(45,-140); ctx.lineTo(10,-18); ctx.closePath(); ctx.fill();
-    }
-    ctx.fillStyle = "rgba(255,80,120,0.9)"; ctx.fillRect(-9,15,4,3); ctx.fillRect(5,15,4,3);
+    ctx.fillStyle = "rgba(255,240,200,0.95)"; ctx.beginPath(); ctx.arc(-6,-17,2,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(6,-17,2,0,Math.PI*2); ctx.fill();
+    if (sky.ambient < 0.75) { const cone = ctx.createLinearGradient(0,-18,0,-140); cone.addColorStop(0,"rgba(255,240,200,0.55)"); cone.addColorStop(1,"rgba(255,240,200,0)");
+      ctx.fillStyle = cone; ctx.beginPath(); ctx.moveTo(-10,-18); ctx.lineTo(-45,-140); ctx.lineTo(45,-140); ctx.lineTo(10,-18); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = this.brakeHeld ? "rgba(255,80,120,1)" : "rgba(255,80,120,0.9)"; ctx.fillRect(-9,15,4,3); ctx.fillRect(5,15,4,3);
     ctx.restore();
   }
-  roundRect(ctx,x,y,w,h,r) {
-    ctx.beginPath(); ctx.moveTo(x+r,y);
-    ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
-  }
+  roundRect(ctx,x,y,w,h,r) { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
   drawVignette(ctx,w,h,sky) {
     const g = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.3, w/2,h/2,Math.max(w,h)*0.75);
-    g.addColorStop(0,"rgba(0,0,0,0)");
-    g.addColorStop(1,"rgba(" + (sky.top[0]*0.4|0) + "," + (sky.top[1]*0.4|0) + "," + (sky.top[2]*0.4|0) + ",0.7)");
+    g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(" + (sky.top[0]*0.4|0) + "," + (sky.top[1]*0.4|0) + "," + (sky.top[2]*0.4|0) + ",0.7)");
     ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
   }
+  drawSpeedLines(ctx, w, h) {
+    ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1.5; const cx = w/2, cy = h*0.64;
+    for (let i = 0; i < 18; i++) { const a = Math.random()*Math.PI*2, r0 = Math.min(w,h)*0.3 + Math.random()*100, r1 = r0 + 60 + Math.random()*140;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a)*r0, cy + Math.sin(a)*r0); ctx.lineTo(cx + Math.cos(a)*r1, cy + Math.sin(a)*r1); ctx.stroke(); }
+    ctx.restore();
+  }
+}
+function hsl(h, s, l) {
+  const c = (1 - Math.abs(2*l - 1)) * s, x = c * (1 - Math.abs((h/60) % 2 - 1)), m = l - c/2; let r, g, b;
+  if (h < 60) [r,g,b] = [c,x,0]; else if (h < 120) [r,g,b] = [x,c,0]; else if (h < 180) [r,g,b] = [0,c,x]; else if (h < 240) [r,g,b] = [0,x,c]; else if (h < 300) [r,g,b] = [x,0,c]; else [r,g,b] = [c,0,x];
+  return [(r+m)*255, (g+m)*255, (b+m)*255];
 }
 
 /* ---------------------------- UI wiring -------------------------------- */
@@ -808,138 +1078,209 @@ class Game {
   const $ = (id) => document.getElementById(id);
   const canvas = $("game");
   const game = new Game(canvas);
+  const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+  if (!isTouch) document.body.classList.add("desktop");
 
   const els = {
     hud: $("hud"), menu: $("menu"), paused: $("paused"), over: $("over"),
-    score: $("hud-score"), best: $("hud-best"), biome: $("hud-biome"),
-    time: $("hud-time"), speed: $("hud-speed"), energy: $("energy-fill"), sunMarker: $("sun-marker"),
-    touch: $("touch"),
-    menuLedgerWrap: $("menu-ledger-wrap"), menuLedger: $("menu-ledger"),
-    overScore: $("over-score"), overBest: $("over-best"), overDistance: $("over-distance"), overLedger: $("over-ledger"),
+    score: $("hud-score"), best: $("hud-best"), combo: $("hud-combo"), biome: $("hud-biome"), time: $("hud-time"), speed: $("hud-speed"), depth: $("hud-depth"),
+    energy: $("energy-fill"), energyBar: $("energy-bar"), boost: $("boost-fill"), boostBar: $("boost-bar"), sunMarker: $("sun-marker"), chips: $("chips"), dmg: $("dmg"),
+    hint: $("hint"), banner: $("banner"), bannerT: $("banner-t"), bannerS: $("banner-s"), toasts: $("toasts"), boostBtn: $("boost-btn"), brakeBtn: $("brake-btn"),
+    overScore: $("over-score"), overBest: $("over-best"), overDistance: $("over-distance"), overLedger: $("over-ledger"), overStats: $("over-stats"), overShards: $("over-shards"), reviveBtn: $("revive-btn"),
+    menuShards: $("menu-shards"), menuMissions: $("menu-missions"), menuAch: $("menu-ach"), menuStats: $("menu-stats"), menuLedger: $("menu-ledger"), menuLedgerEmpty: $("menu-ledger-empty"),
+    garageSkins: $("garage-skins"), garageTrails: $("garage-trails"), muteBtn: $("mute-btn"), menuMute: $("menu-mute"),
   };
+  let currentStatus = "menu", lastCombo = 0, missions = dailyMissions();
+  const fmt = (n) => Number(n).toLocaleString();
 
-  let lastRun = null;
-  let currentStatus = "menu";
-
-  const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
-  if (isTouch) els.touch.classList.remove("hidden");
-
-  function fmt(n) { return Number(n).toLocaleString(); }
-
+  /* ------- Overlays ------- */
   function showOverlay(status) {
-    els.menu.classList.toggle("hidden", status !== "menu");
-    els.paused.classList.toggle("hidden", status !== "paused");
-    els.over.classList.toggle("hidden", status !== "over");
-    els.hud.classList.toggle("hidden", status !== "playing");
+    els.menu.classList.toggle("hidden", status !== "menu"); els.paused.classList.toggle("hidden", status !== "paused");
+    els.over.classList.toggle("hidden", status !== "over"); els.hud.classList.toggle("hidden", status !== "playing");
+    if (status === "menu") renderMenu();
   }
+  function sync() { if (game.status !== currentStatus) { currentStatus = game.status; showOverlay(currentStatus); } }
 
-  function renderLedger(container, table, cols, highlight) {
-    container.style.gridTemplateColumns = cols;
-    container.innerHTML = "";
-    table.forEach((h, i) => {
-      if (cols.split(" ").length === 3) {
-        const rank = document.createElement("div"); rank.className = "rank"; rank.textContent = String(i+1).padStart(2,"0");
-        const date = document.createElement("div"); date.className = "date"; date.textContent = new Date(h.date).toLocaleDateString();
-        const sc = document.createElement("div"); sc.className = "score";
-        sc.textContent = fmt(h.score);
-        if (highlight != null && h.score === highlight) sc.style.color = "#8cf0e8";
-        container.appendChild(rank); container.appendChild(date); container.appendChild(sc);
-      } else {
-        const date = document.createElement("div"); date.className = "date";
-        date.textContent = String(i+1).padStart(2,"0") + " · " + new Date(h.date).toLocaleDateString();
-        const sc = document.createElement("div"); sc.className = "score"; sc.textContent = fmt(h.score);
-        container.appendChild(date); container.appendChild(sc);
-      }
-    });
-  }
-
-  function refreshMenuLedger() {
-    const table = loadTable();
-    if (table.length > 0) {
-      els.menuLedgerWrap.classList.remove("hidden");
-      renderLedger(els.menuLedger, table.slice(0,5), "1fr auto", null);
-    } else els.menuLedgerWrap.classList.add("hidden");
-  }
-  refreshMenuLedger();
-
+  /* ------- HUD ------- */
   game.onHud = function (h) {
-    if (h.status !== currentStatus) { currentStatus = h.status; showOverlay(h.status); if (h.status === "menu") refreshMenuLedger(); }
-    if (h.status !== "playing") return;
-    els.score.textContent = fmt(h.score);
-    els.best.textContent = "BEST " + fmt(h.best);
-    els.speed.textContent = Math.round(h.speed);
+    sync(); if (h.status !== "playing") return;
+    els.score.textContent = fmt(h.score); els.best.textContent = "BEST " + fmt(h.best);
+    els.speed.textContent = Math.round(h.speed * 0.6) + " km/h"; els.depth.textContent = h.depth;
     els.biome.textContent = h.biome.toUpperCase();
     const hh = Math.floor(h.timeOfDay*24), mm = Math.floor(((h.timeOfDay*24)%1)*60);
     els.time.textContent = h.time + " · " + String(hh).padStart(2,"0") + ":" + String(mm).padStart(2,"0");
-    const pct = Math.max(0, Math.min(100, h.energy*100));
-    els.energy.style.width = pct + "%";
+    const pct = clamp(h.energy*100, 0, 100); els.energy.style.width = pct + "%";
     const ec = h.energy > 0.5 ? "#8cf0e8" : h.energy > 0.25 ? "#f6c86a" : "#ff7a9d";
     els.energy.style.background = "linear-gradient(90deg, " + ec + ", #f6c8ff)";
-    // sun marker on arc
+    els.energyBar.classList.toggle("low", h.energy < 0.25); els.dmg.classList.toggle("low", h.energy < 0.25);
+    els.boost.style.width = clamp(h.boost*100, 0, 100) + "%";
+    const ready = h.boost >= 0.25; els.boostBar.classList.toggle("ready", ready && !h.boostOn); els.boostBtn.classList.toggle("ready", ready && !h.boostOn); els.boostBtn.classList.toggle("active", h.boostOn);
+    if (h.combo >= 2) { els.combo.textContent = h.combo + " chain · ×" + h.mult; els.combo.classList.toggle("hot", h.mult >= 3); if (h.combo !== lastCombo) { els.combo.classList.add("pop"); setTimeout(() => els.combo.classList.remove("pop"), 100); } }
+    else els.combo.textContent = "";
+    lastCombo = h.combo;
+    let chips = "";
+    if (h.shield) chips += '<span class="chip shield">SHIELD</span>';
+    if (h.magnetT > 0) chips += '<span class="chip magnet">MAGNET ' + Math.ceil(h.magnetT) + 's</span>';
+    if (h.lucidT > 0) chips += '<span class="chip lucid">LUCID ×2 ' + Math.ceil(h.lucidT) + 's</span>';
+    els.chips.innerHTML = chips;
     const ang = h.timeOfDay*Math.PI*2 - Math.PI/2;
-    els.sunMarker.setAttribute("cx", 50 + Math.cos(ang)*22);
-    els.sunMarker.setAttribute("cy", 30 + Math.sin(ang)*22);
+    els.sunMarker.setAttribute("cx", 50 + Math.cos(ang)*22); els.sunMarker.setAttribute("cy", 30 + Math.sin(ang)*22);
   };
 
-  game.onGameOver = function (score, isBest) {
-    lastRun = { score: score, isBest: isBest };
-    const nt = loadTable().concat([{ score: score, date: new Date().toISOString() }])
-      .sort((a,b) => b.score - a.score).slice(0, 8);
-    saveTable(nt);
-    els.overScore.textContent = fmt(score);
-    els.overBest.classList.toggle("hidden", !isBest);
-    els.overDistance.textContent = "you drifted " + Math.floor((game.distance||0)/100) + "00 metres";
-    renderLedger(els.overLedger, nt, "auto 1fr auto", score);
+  /* ------- Events from game ------- */
+  game.onEvent = function (name, data) {
+    if (name === "status") sync();
+    else if (name === "mute") toggleMute();
+    else if (name === "toast") toast(data);
+    else if (name === "banner") banner(data.t, data.s);
+    else if (name === "progress") checkProgress();
+    else if (name === "start") {
+      els.hint.style.opacity = "1"; els.hint.textContent = isTouch ? "Drag anywhere to steer · ✦ boost · ▼ brake" : "A / D to steer · Space to boost · S to brake";
+      const t = SAVE.seenTutorial ? 3500 : 9000; SAVE.seenTutorial = true; persist();
+      setTimeout(() => { els.hint.style.opacity = "0"; }, t);
+      setTimeout(() => banner("Depth 1", depthName(1) + " · collect orbs, avoid the thorns"), 600);
+    }
   };
+  function toast(text) { const d = document.createElement("div"); d.className = "toast"; d.textContent = text; els.toasts.appendChild(d); setTimeout(() => d.remove(), 3000); }
+  function banner(t, s) { els.bannerT.textContent = t; els.bannerS.textContent = s; els.banner.classList.remove("show"); void els.banner.offsetWidth; els.banner.classList.add("show"); }
+
+  /* ------- Missions / achievements ------- */
+  function missionProgress(m) {
+    const base = SAVE.daily.base[m.id] || 0, cur = game.status === "menu" ? 0 : (game.run[m.key] || 0) - ((committed && committed[m.key]) || 0);
+    return m.type === "cum" ? base + Math.max(0, cur) : Math.max(base, game.status === "menu" ? 0 : (game.run[m.key] || 0));
+  }
+  function checkProgress() {
+    missions.forEach((m) => {
+      if (SAVE.daily.claimed[m.id]) return;
+      if (missionProgress(m) >= m.target) { SAVE.daily.claimed[m.id] = true; SAVE.shards += m.reward; persist(); toast("✓ " + m.text + "  +" + m.reward + " ◆"); AUDIO.power(); }
+    });
+    ACHIEVEMENTS.forEach((a) => { if (!SAVE.achievements[a.id] && a.test(SAVE.life, game.run)) { SAVE.achievements[a.id] = Date.now(); persist(); toast("✧ Achievement: " + a.name); } });
+  }
+  let committed = null; // snapshot of run stats already folded into lifetime/mission totals (revive support)
+  function commitRun() {
+    const r = game.run, prev = committed || {};
+    const delta = (k) => (r[k] || 0) - (prev[k] || 0);
+    missions.forEach((m) => { const b = SAVE.daily.base[m.id] || 0; SAVE.daily.base[m.id] = m.type === "cum" ? b + delta(m.key) : Math.max(b, r[m.key] || 0); });
+    const L = SAVE.life; if (!committed) L.runs++;
+    L.distance += delta("distanceUnits"); L.orbs += delta("orbs"); L.nearMisses += delta("nearMisses"); L.portals += delta("portals"); L.boosts += delta("boosts"); L.hits += delta("hits"); L.time += delta("time");
+    L.maxDepth = Math.max(L.maxDepth, r.depth); L.bestCombo = Math.max(L.bestCombo, r.bestCombo);
+    committed = Object.assign({}, r); persist();
+  }
+
+  /* ------- Game over ------- */
+  let runCommitted = false, shardsEarned = 0;
+  // note: `committed` (declared above) tracks what part of the current run is already in lifetime totals
+  game.onGameOver = function (score, isBest) {
+    checkProgress();
+    shardsEarned = Math.floor(score / 60) + game.depth * 10; SAVE.shards += shardsEarned;
+    commitRun(); runCommitted = true;
+    const nt = loadTable().concat([{ score, date: new Date().toISOString() }]).sort((a,b) => b.score - a.score).slice(0, 8); saveTable(nt);
+    els.overScore.textContent = fmt(score); els.overBest.classList.toggle("hidden", !isBest);
+    els.overDistance.textContent = "you drifted " + fmt(game.run.metres) + " metres · depth " + game.depth + " · " + depthName(game.depth);
+    els.overShards.textContent = shardsEarned;
+    const r = game.run;
+    els.overStats.innerHTML = stat(r.orbs, "ORBS") + stat(r.bestCombo, "BEST CHAIN") + stat(r.nearMisses, "NEAR MISSES") + stat(Math.floor(r.time) + "s", "AWAKE");
+    els.reviveBtn.classList.toggle("hidden", game.revives <= 0);
+    renderLedger(els.overLedger, nt, score);
+  };
+  const stat = (v, k) => '<div class="stat"><div class="v">' + v + '</div><div class="k">' + k + '</div></div>';
+  function renderLedger(container, table, highlight) {
+    container.innerHTML = "";
+    table.forEach((h, i) => {
+      const rank = document.createElement("div"); rank.className = "rank"; rank.textContent = String(i+1).padStart(2,"0");
+      const date = document.createElement("div"); date.className = "date"; date.textContent = new Date(h.date).toLocaleDateString();
+      const sc = document.createElement("div"); sc.className = "score"; sc.textContent = fmt(h.score); if (highlight != null && h.score === highlight) sc.style.color = "#8cf0e8";
+      container.appendChild(rank); container.appendChild(date); container.appendChild(sc);
+    });
+  }
+
+  /* ------- Menu ------- */
+  function renderMenu() {
+    missions = dailyMissions();
+    els.menuShards.textContent = fmt(SAVE.shards);
+    els.menuMissions.innerHTML = missions.map((m) => { const p = Math.min(m.target, missionProgress(m)), done = !!SAVE.daily.claimed[m.id];
+      return '<div class="mission' + (done ? " done" : "") + '"><div class="mt">' + (done ? "✓ " : "") + m.text + '<div class="pb"><i style="width:' + (done ? 100 : p/m.target*100) + '%"></i></div></div><div class="mr">' + (done ? "claimed" : fmt(p) + "/" + fmt(m.target) + " · +" + m.reward + " ◆") + "</div></div>"; }).join("");
+    els.menuAch.innerHTML = ACHIEVEMENTS.map((a) => '<div class="' + (SAVE.achievements[a.id] ? "got" : "") + '"><b>' + a.name + '</b><br><span style="opacity:.75">' + a.desc + "</span></div>").join("");
+    const L = SAVE.life;
+    els.menuStats.innerHTML = stat(fmt(SAVE.best), "BEST") + stat(L.runs, "DREAMS") + stat((L.distance / UNITS_PER_M / 1000).toFixed(1) + " km", "DRIFTED") + stat(fmt(L.orbs), "ORBS") + stat(L.maxDepth, "MAX DEPTH") + stat(L.bestCombo, "BEST CHAIN") + stat(fmt(L.nearMisses), "NEAR MISSES") + stat(Math.floor(L.time/60) + "m", "AWAKE");
+    const table = loadTable(); els.menuLedgerEmpty.classList.toggle("hidden", table.length > 0); renderLedger(els.menuLedger, table.slice(0, 8), null);
+    renderGarage(); els.menuMute.classList.toggle("on", !AUDIO.muted); els.menuMute.textContent = AUDIO.muted ? "♪ Muted" : "♪ Sound";
+  }
+  function renderGarage() {
+    const mk = (list, owned, selected, kind) => list.map((it) => {
+      const own = owned.indexOf(it.id) >= 0, sel = selected === it.id;
+      const sw = kind === "skin" ? '<div class="sw" style="background:' + (it.a === "rainbow" ? "linear-gradient(90deg,#f6c8ff,#8cf0e8,#ffb8d6,#f6c86a)" : "linear-gradient(135deg," + it.a + "," + it.b + ")") + '"></div>' : '<div class="sw" style="background:rgba(255,255,255,.08);font-size:10px;line-height:26px;opacity:.8">' + it.desc + "</div>";
+      return '<div class="item' + (sel ? " sel" : "") + (own ? "" : " locked") + '" data-kind="' + kind + '" data-id="' + it.id + '">' + sw + "<b>" + it.name + "</b>" + (own ? (sel ? '<div class="pr" style="color:#8cf0e8">equipped</div>' : '<div class="pr" style="opacity:.6">owned</div>') : '<div class="pr">' + it.price + " ◆</div>") + "</div>";
+    }).join("");
+    els.garageSkins.innerHTML = mk(SKINS, SAVE.owned.skins, SAVE.skin, "skin");
+    els.garageTrails.innerHTML = mk(TRAILS, SAVE.owned.trails, SAVE.trail, "trail");
+  }
+  function garageClick(e) {
+    const it = e.target.closest(".item"); if (!it) return;
+    const kind = it.dataset.kind, id = it.dataset.id, list = kind === "skin" ? SKINS : TRAILS, ownedKey = kind === "skin" ? "skins" : "trails";
+    const item = list.find((x) => x.id === id), owned = SAVE.owned[ownedKey];
+    if (owned.indexOf(id) < 0) {
+      if (SAVE.shards < item.price) { toastMenu("Need " + (item.price - SAVE.shards) + " more ◆ — earn shards by drifting"); return; }
+      SAVE.shards -= item.price; owned.push(id); AUDIO.ensure(); AUDIO.power();
+    }
+    if (kind === "skin") SAVE.skin = id; else SAVE.trail = id;
+    persist(); renderMenu();
+  }
+  function toastMenu(text) { const d = document.createElement("div"); d.className = "toast"; d.style.position = "fixed"; d.style.left = "50%"; d.style.top = "12%"; d.style.transform = "translateX(-50%)"; d.style.zIndex = 20; d.textContent = text; document.body.appendChild(d); setTimeout(() => d.remove(), 3000); }
+  els.garageSkins.addEventListener("click", garageClick); els.garageTrails.addEventListener("click", garageClick);
+  document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.add("hidden")); $("tab-" + b.dataset.tab).classList.remove("hidden");
+    document.querySelectorAll("[data-tab]").forEach((x) => x.classList.toggle("on", x === b));
+  }));
+  document.querySelector('[data-tab="about"]').classList.add("on");
 
   /* ------- Buttons ------- */
   function go(action) { action(); currentStatus = game.status; showOverlay(game.status); }
-  $("start-btn").onclick = function () { go(() => game.start()); };
-  $("again-btn").onclick = function () { go(() => game.start()); };
-  $("resume-btn").onclick = function () { go(() => game.resume()); };
-  $("restart-btn").onclick = function () { go(() => game.start()); };
-  $("pause-btn").onclick = function () { go(() => game.pause()); };
-  $("help-btn").onclick = function () { $("help-box").classList.toggle("hidden"); };
+  function startRun() { runCommitted = false; committed = null; go(() => game.start()); }
+  $("start-btn").onclick = startRun; $("again-btn").onclick = startRun; $("restart-btn").onclick = startRun;
+  $("resume-btn").onclick = () => go(() => game.resume());
+  $("quit-btn").onclick = () => { if (!runCommitted) { commitRun(); runCommitted = true; } go(() => game.quitToMenu()); };
+  $("over-menu-btn").onclick = () => go(() => game.quitToMenu());
+  $("pause-btn").onclick = () => go(() => game.pause());
+  els.reviveBtn.onclick = () => { if (game.revive()) { runCommitted = false; SAVE.shards -= shardsEarned; persist(); go(() => {}); } };
+  function toggleMute() { const m = AUDIO.ensure() ? AUDIO.toggleMute() : true; els.muteBtn.textContent = m ? "🔇" : "♪"; els.menuMute.classList.toggle("on", !m); els.menuMute.textContent = m ? "♪ Muted" : "♪ Sound"; }
+  els.muteBtn.onclick = toggleMute; els.menuMute.onclick = toggleMute; els.muteBtn.textContent = SAVE.muted ? "🔇" : "♪";
+  // unlock audio on first gesture
+  const unlock = () => { AUDIO.ensure(); window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock); };
+  window.addEventListener("pointerdown", unlock); window.addEventListener("keydown", unlock);
 
-  /* ------- Touch controls ------- */
-  const joystick = $("joystick"), knob = $("joy-knob");
-  let joyActive = false, throttle = 0;
-  function updateTouch() {
-    game.setTouch(joyState, throttle);
+  /* ------- Pointer steering (touch + mouse) ------- */
+  const zone = $("steer-zone"), knob = $("ghost-knob"), dot = $("ghost-dot");
+  let steerId = null, originX = 0, originY = 0;
+  function steerMove(e) {
+    const dx = e.clientX - originX, dead = 6, range = 70;
+    let v;
+    if (Math.abs(dx) < dead) v = (originX < window.innerWidth / 2 ? -0.55 : 0.55);   // tap-hold on a side turns that way
+    else v = clamp(dx / range, -1, 1);
+    dot.style.transform = "translate(calc(-50% + " + clamp(dx, -range, range) * 0.5 + "px), -50%)";
+    game.setPointerSteer(v);
   }
-  let joyState = 0;
-  function joyFromEvent(e) {
-    const rect = joystick.getBoundingClientRect();
-    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
-    let dx = e.clientX - cx, dy = e.clientY - cy;
-    const max = 60, d = Math.hypot(dx, dy);
-    if (d > max) { dx = dx/d*max; dy = dy/d*max; }
-    knob.style.left = (32 + dx) + "px"; knob.style.top = (32 + dy) + "px";
-    joyState = Math.max(-1, Math.min(1, dx/max));
-    updateTouch();
-  }
-  function joyEnd() {
-    joyActive = false; knob.style.left = "32px"; knob.style.top = "32px"; joyState = 0; updateTouch();
-  }
-  joystick.addEventListener("pointerdown", function (e) { joyActive = true; joystick.setPointerCapture(e.pointerId); joyFromEvent(e); });
-  joystick.addEventListener("pointermove", function (e) { if (joyActive) joyFromEvent(e); });
-  joystick.addEventListener("pointerup", joyEnd);
-  joystick.addEventListener("pointercancel", joyEnd);
+  zone.addEventListener("pointerdown", (e) => {
+    if (steerId !== null) return; steerId = e.pointerId; zone.setPointerCapture(e.pointerId);
+    originX = e.clientX; originY = e.clientY;
+    if (isTouch) { knob.style.display = "block"; knob.style.left = originX + "px"; knob.style.top = originY + "px"; }
+    steerMove(e);
+  });
+  zone.addEventListener("pointermove", (e) => { if (e.pointerId === steerId) steerMove(e); });
+  const steerEnd = (e) => { if (e.pointerId !== steerId) return; steerId = null; knob.style.display = "none"; game.setPointerSteer(0); };
+  zone.addEventListener("pointerup", steerEnd); zone.addEventListener("pointercancel", steerEnd);
 
-  function bindPedal(el, value) {
-    const on = function (e) { e.preventDefault(); el.classList.add("active"); throttle = value; updateTouch(); if (e.pointerId != null) el.setPointerCapture(e.pointerId); };
-    const off = function () { el.classList.remove("active"); throttle = 0; updateTouch(); };
-    el.addEventListener("pointerdown", on);
-    el.addEventListener("pointerup", off);
-    el.addEventListener("pointercancel", off);
-    el.addEventListener("pointerleave", off);
+  function bindHold(el, setter) {
+    const on = (e) => { e.preventDefault(); e.stopPropagation(); el.classList.add("active"); setter(true); try { el.setPointerCapture(e.pointerId); } catch (_) {} };
+    const off = (e) => { el.classList.remove("active"); setter(false); };
+    el.addEventListener("pointerdown", on); el.addEventListener("pointerup", off); el.addEventListener("pointercancel", off); el.addEventListener("lostpointercapture", off);
   }
-  bindPedal($("pedal-up"), 1);
-  bindPedal($("pedal-down"), -1);
+  bindHold(els.boostBtn, (b) => game.setPointerBoost(b));
+  bindHold(els.brakeBtn, (b) => { game.setPointerBrake(b); game.brakeHeld = b; });
 
   /* ------- Go ------- */
   showOverlay("menu");
-  game.raf = requestAnimationFrame(function (t) { game.loop(t); });
+  game.raf = requestAnimationFrame((t) => game.loop(t));
 })();
 </script>
 </body>
